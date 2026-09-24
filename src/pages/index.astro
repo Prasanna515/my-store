@@ -1,0 +1,38 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase, rupees } from '../lib/supabase.js';
+
+const q = (Astro.url.searchParams.get('q') ?? '').replace(/[,()%*]/g, ' ').trim();
+const catId = Number(Astro.url.searchParams.get('cat')) || null;
+
+const { data: catData } = await supabase.from('categories').select('*').order('sort_order');
+const cats = catData ?? [];
+const parents = cats.filter((c) => !c.parent_id);
+const current = cats.find((c) => c.id === catId);
+const ids = current ? [current.id, ...cats.filter((c) => c.parent_id === current.id).map((c) => c.id)] : null;
+
+let query = supabase.from('products').select('id,slug,name,sku,mrp,selling_price,stock,image_url').order('name').limit(60);
+if (ids) query = query.in('category_id', ids);
+if (q) query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,brand.ilike.%${q}%`);
+const { data } = await query;
+const products = data ?? [];
+---
+<Layout title={current ? `${current.name} | My Electronics Store` : 'My Electronics Store'}>
+  <div class="chips">
+    <a class={`chip ${!current ? 'on' : ''}`} href="/">All</a>
+    {parents.map((c) => <a class={`chip ${current?.id === c.id ? 'on' : ''}`} href={`/?cat=${c.id}`}>{c.name}</a>)}
+  </div>
+  {q && <p>Results for <b>{q}</b>: {products.length} found</p>}
+  {products.length === 0 ? <p>No products found.</p> : (
+    <div class="grid">
+      {products.map((p) => (
+        <a class="card" href={`/product/${p.slug}`}>
+          <div class="img">{p.image_url ? <img src={p.image_url} alt={p.name} loading="lazy" /> : 'No image'}</div>
+          <div class="name">{p.name}</div>
+          <div><span class="price">{rupees(p.selling_price)}</span>{p.mrp > p.selling_price && <span class="mrp">{rupees(p.mrp)}</span>}</div>
+          {p.stock <= 0 && <div class="out">Out of stock</div>}
+        </a>
+      ))}
+    </div>
+  )}
+</Layout>

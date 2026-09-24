@@ -1,0 +1,12 @@
+{
+  "name": "my-store",
+  "type": "module",
+  "private": true,
+  "scripts": { "dev": "astro dev", "build": "astro build", "preview": "astro preview" },
+  "dependencies": {
+    "astro": "latest",
+    "@astrojs/cloudflare": "latest",
+    "@supabase/supabase-js": "latest"
+  },
+  "devDependencies": { "wrangler": "latest" }
+}

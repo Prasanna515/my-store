@@ -1,0 +1,26 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { supabase, rupees } from '../../lib/supabase.js';
+
+const { slug } = Astro.params;
+const { data: p } = await supabase.from('products').select('*').eq('slug', slug).maybeSingle();
+if (!p) return new Response('Product not found', { status: 404 });
+const off = p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.mrp) * 100) : 0;
+---
+<Layout title={`${p.name} | My Electronics Store`}>
+  <p><a href="/">← All products</a></p>
+  <div class="detail">
+    <div class="img">{p.image_url ? <img src={p.image_url} alt={p.name} /> : 'No image'}</div>
+    <div>
+      <h1 style="margin-top:0">{p.name}</h1>
+      <p style="color:var(--muted)">SKU: {p.sku}{p.brand && ` · Brand: ${p.brand}`}</p>
+      <p style="font-size:24px"><span class="price">{rupees(p.selling_price)}</span>
+        {off > 0 && <><span class="mrp">{rupees(p.mrp)}</span> <span class="off">{off}% off</span></>}</p>
+      <p style="color:var(--muted);font-size:13px">Inclusive of GST</p>
+      {p.stock > 0 ? <p style="color:#15803d">In stock ({p.stock} available)</p> : <p class="out">Out of stock</p>}
+      {p.short_description && <p>{p.short_description}</p>}
+      {p.specifications && <><h3>Specifications</h3><p style="white-space:pre-line">{p.specifications}</p></>}
+      {p.datasheet_url && <p><a href={p.datasheet_url} style="color:var(--brand)">Datasheet</a></p>}
+    </div>
+  </div>
+</Layout>

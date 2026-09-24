@@ -1,0 +1,8 @@
+{
+  "name": "my-store",
+  "main": "dist/_worker.js/index.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "binding": "ASSETS", "directory": "./dist" },
+  "observability": { "enabled": true }
+}
