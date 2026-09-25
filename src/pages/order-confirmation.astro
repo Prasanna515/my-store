@@ -1,0 +1,16 @@
+---
+import Layout from '../layouts/Layout.astro';
+const orderNumber = Astro.url.searchParams.get('order');
+---
+<Layout title="Order placed | My Electronics Store">
+  <div style="max-width:520px;margin:40px auto;text-align:center;background:#fff;padding:32px;border-radius:10px;border:1px solid var(--line)">
+    <h1>🎉 Thank you!</h1>
+    {orderNumber ? (
+      <>
+        <p>Your order <b>{orderNumber}</b> has been placed successfully.</p>
+        <p style="color:var(--muted)">We'll send updates to your email and phone.</p>
+      </>
+    ) : <p>Your order has been placed.</p>}
+    <a class="btn" href="/" style="display:inline-block;margin-top:16px">Continue Shopping</a>
+  </div>
+</Layout>

@@ -34,7 +34,28 @@ const off = p && p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.m
       {p.short_description && <p>{p.short_description}</p>}
       {p.specifications && <><h3>Specifications</h3><p style="white-space:pre-line">{p.specifications}</p></>}
       {p.datasheet_url && <p><a href={p.datasheet_url} style="color:var(--brand)">Datasheet</a></p>}
+      {p.stock > 0 && (
+        <div id="add-to-cart" data-product={JSON.stringify({ product_id: p.id, sku: p.sku, name: p.name, price: p.selling_price, image_url: p.image_url })} style="margin-top:16px">
+          <input type="number" id="qty" value="1" min="1" max={p.stock} style="width:60px;padding:8px;border:1px solid var(--line);border-radius:8px;margin-right:8px" />
+          <button id="add-btn" class="btn">Add to Cart</button>
+          <span id="add-msg" style="margin-left:10px;color:#15803d"></span>
+        </div>
+      )}
     </div>
   </div>
   )}
+  <script>
+    import { addToCart } from '../../lib/cart-client.js';
+    const wrap = document.getElementById('add-to-cart');
+    if (wrap) {
+      const product = JSON.parse(wrap.dataset.product);
+      document.getElementById('add-btn')?.addEventListener('click', () => {
+        const qty = parseInt(document.getElementById('qty').value) || 1;
+        addToCart(product, qty);
+        const msg = document.getElementById('add-msg');
+        msg.textContent = 'Added to cart!';
+        setTimeout(() => (msg.textContent = ''), 2000);
+      });
+    }
+  </script>
 </Layout>

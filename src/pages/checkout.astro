@@ -1,0 +1,140 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getSupabase } from '../lib/supabase.js';
+
+let settings = { cod_enabled: false, flat_shipping: 60, cod_fee: 0, free_shipping_above: null };
+try {
+  const supabase = getSupabase();
+  const { data } = await supabase.from('settings').select('*').eq('id', 1).single();
+  if (data) settings = data;
+} catch (e) {
+  // fall back to the defaults above if settings can't be read
+}
+---
+<Layout title="Checkout | My Electronics Store">
+  <h1>Checkout</h1>
+  <form id="checkout-form" style="max-width:520px;display:flex;flex-direction:column;gap:10px;background:#fff;padding:20px;border-radius:10px;border:1px solid var(--line)">
+    <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+    <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+    <input name="phone" placeholder="Phone (10 digits)" required pattern="[0-9]{10}" style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+    <input name="address_line" placeholder="Address" required style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+    <div style="display:flex;gap:10px">
+      <input name="city" placeholder="City" required style="flex:1;padding:10px;border:1px solid var(--line);border-radius:8px" />
+      <input name="state" placeholder="State" required style="flex:1;padding:10px;border:1px solid var(--line);border-radius:8px" />
+      <input name="pincode" placeholder="Pincode" required pattern="[1-9][0-9]{5}" style="width:120px;padding:10px;border:1px solid var(--line);border-radius:8px" />
+    </div>
+    <fieldset style="border:1px solid var(--line);border-radius:8px;padding:10px">
+      <legend>Payment method</legend>
+      <label style="display:block;margin-bottom:6px">
+        <input type="radio" name="payment_method" value="online" checked /> Pay online (Razorpay)
+      </label>
+      <label style={`display:block;opacity:${settings.cod_enabled ? 1 : 0.5}`}>
+        <input type="radio" name="payment_method" value="cod" disabled={!settings.cod_enabled} />
+        {' '}Cash on Delivery{settings.cod_fee > 0 && ` (+₹${settings.cod_fee} fee)`}
+        {!settings.cod_enabled && ' — currently unavailable'}
+      </label>
+    </fieldset>
+    <div id="summary" style="background:#f8fafc;padding:10px;border-radius:8px"></div>
+    <div id="checkout-msg" style="color:#b91c1c"></div>
+    <button type="submit" class="btn">Place Order</button>
+  </form>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+  <script
+    define:vars={{
+      flatShipping: Number(settings.flat_shipping ?? 60),
+      codFee: Number(settings.cod_fee ?? 0),
+      freeShippingAbove: settings.free_shipping_above != null ? Number(settings.free_shipping_above) : null,
+    }}
+  >
+    import { getCart, clearCart } from '../lib/cart-client.js';
+
+    function rupees(n) {
+      return '₹' + Number(n).toLocaleString('en-IN');
+    }
+
+    const cart = getCart();
+    if (cart.length === 0) window.location.href = '/cart';
+
+    function updateSummary() {
+      const subtotal = cart.reduce((s, c) => s + c.qty * Number(c.price), 0);
+      const method = document.querySelector('input[name=payment_method]:checked')?.value || 'online';
+      let shipping = flatShipping;
+      if (freeShippingAbove != null && subtotal >= freeShippingAbove) shipping = 0;
+      const fee = method === 'cod' ? codFee : 0;
+      const total = subtotal + shipping + fee;
+      document.getElementById('summary').innerHTML =
+        `Subtotal: ${rupees(subtotal)}<br>Shipping: ${rupees(shipping)}` +
+        (fee ? `<br>COD fee: ${rupees(fee)}` : '') +
+        `<br><b>Total: ${rupees(total)}</b>`;
+    }
+    document.querySelectorAll('input[name=payment_method]').forEach((r) => r.addEventListener('change', updateSummary));
+    updateSummary();
+
+    document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('checkout-msg');
+      msg.textContent = '';
+      const fd = new FormData(e.target);
+      const customer = Object.fromEntries(fd.entries());
+      const payment_method = customer.payment_method;
+      delete customer.payment_method;
+      const items = cart.map((c) => ({ product_id: c.product_id, qty: c.qty, name: c.name }));
+      const btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      btn.textContent = 'Placing order…';
+      try {
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items, customer, payment_method }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+
+        if (data.payment_method === 'cod') {
+          clearCart();
+          window.location.href = `/order-confirmation?order=${encodeURIComponent(data.order_number)}`;
+          return;
+        }
+
+        const rzp = new Razorpay({
+          key: data.key_id,
+          amount: data.amount,
+          currency: data.currency,
+          order_id: data.razorpay_order_id,
+          name: 'My Electronics Store',
+          prefill: { name: data.customer_name, email: data.email, contact: data.phone },
+          handler: async function (response) {
+            const verifyRes = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(response),
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) {
+              msg.textContent = verifyData.error || 'Payment verification failed.';
+              btn.disabled = false;
+              btn.textContent = 'Place Order';
+              return;
+            }
+            clearCart();
+            window.location.href = `/order-confirmation?order=${encodeURIComponent(verifyData.order_number)}`;
+          },
+          modal: {
+            ondismiss: function () {
+              btn.disabled = false;
+              btn.textContent = 'Place Order';
+            },
+          },
+          theme: { color: '#0b5ed7' },
+        });
+        rzp.open();
+      } catch (err) {
+        msg.textContent = err.message;
+        btn.disabled = false;
+        btn.textContent = 'Place Order';
+      }
+    });
+  </script>
+</Layout>

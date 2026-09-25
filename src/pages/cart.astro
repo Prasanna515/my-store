@@ -1,0 +1,52 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Your Cart | My Electronics Store">
+  <h1>Your Cart</h1>
+  <div id="cart-root">Loading…</div>
+  <script>
+    import { getCart, setQty, removeFromCart } from '../lib/cart-client.js';
+
+    function rupees(n) {
+      return '₹' + Number(n).toLocaleString('en-IN');
+    }
+
+    function render() {
+      const cart = getCart();
+      const root = document.getElementById('cart-root');
+      if (cart.length === 0) {
+        root.innerHTML = '<p>Your cart is empty. <a href="/">Browse products</a></p>';
+        return;
+      }
+      let subtotal = 0;
+      const rows = cart
+        .map((c) => {
+          subtotal += c.qty * Number(c.price);
+          return `<div style="display:flex;gap:12px;align-items:center;background:#fff;padding:12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px">
+            <div style="flex:1">${c.name}<br><span style="color:#6b7280;font-size:13px">${c.sku}</span></div>
+            <input type="number" min="1" value="${c.qty}" data-id="${c.product_id}" class="qty-input" style="width:60px;padding:6px;border:1px solid #e5e7eb;border-radius:6px" />
+            <div style="width:100px;text-align:right">${rupees(c.qty * c.price)}</div>
+            <button data-remove="${c.product_id}" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:6px;padding:6px 10px;cursor:pointer">Remove</button>
+          </div>`;
+        })
+        .join('');
+      root.innerHTML =
+        rows +
+        `<div style="text-align:right;font-size:18px;font-weight:700;margin-top:12px">Subtotal: ${rupees(subtotal)}</div>
+         <div style="text-align:right;margin-top:12px"><a class="btn" href="/checkout" style="display:inline-block">Proceed to Checkout</a></div>`;
+      root.querySelectorAll('.qty-input').forEach((inp) =>
+        inp.addEventListener('change', (e) => {
+          setQty(e.target.dataset.id, parseInt(e.target.value) || 1);
+          render();
+        })
+      );
+      root.querySelectorAll('[data-remove]').forEach((btn) =>
+        btn.addEventListener('click', (e) => {
+          removeFromCart(e.target.dataset.remove);
+          render();
+        })
+      );
+    }
+    render();
+  </script>
+</Layout>
