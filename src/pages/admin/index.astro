@@ -37,6 +37,18 @@ const statuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'r
     <button type="submit" class="btn">Save Settings</button>
   </form>
 
+  <h2 style="margin-top:32px">Upload Product Photos</h2>
+  <div style="background:#fff;padding:16px;border-radius:10px;border:1px solid var(--line);max-width:520px">
+    <p style="color:var(--muted);font-size:14px;margin-top:0">
+      Name each photo file exactly after the product's SKU — for example <code>SEN-US-001.jpg</code> for the
+      product with SKU <code>SEN-US-001</code>. Select as many files as you like; they'll be matched up automatically.
+    </p>
+    <input type="file" id="image-files" accept="image/*" multiple style="margin-bottom:10px" />
+    <br />
+    <button id="upload-images-btn" class="btn">Upload Photos</button>
+    <div id="upload-result" style="margin-top:12px;font-size:14px;white-space:pre-wrap;max-height:260px;overflow-y:auto"></div>
+  </div>
+
   <h2 style="margin-top:32px">Import Products from CSV</h2>
   <div style="background:#fff;padding:16px;border-radius:10px;border:1px solid var(--line);max-width:520px">
     <p style="color:var(--muted);font-size:14px;margin-top:0">
@@ -90,6 +102,32 @@ const statuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'r
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
   <script>
+    document.getElementById('upload-images-btn').addEventListener('click', async () => {
+      const input = document.getElementById('image-files');
+      const out = document.getElementById('upload-result');
+      const files = Array.from(input.files || []);
+      if (files.length === 0) {
+        out.textContent = 'Choose one or more photos first.';
+        return;
+      }
+      const batchSize = 10; // keep each upload request small and reliable
+      let allResults = [];
+      for (let i = 0; i < files.length; i += batchSize) {
+        const batch = files.slice(i, i + batchSize);
+        out.textContent = `Uploading ${Math.min(i + batchSize, files.length)} of ${files.length}…`;
+        const fd = new FormData();
+        batch.forEach((f) => fd.append('files', f, f.name));
+        const res = await fetch('/api/admin/upload-images', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) {
+          out.textContent = data.error || 'Upload failed.';
+          return;
+        }
+        allResults = allResults.concat(data.results || []);
+      }
+      out.innerHTML = allResults.map((r) => r.replace(/</g, '&lt;')).join('<br>');
+    });
+
     document.getElementById('import-btn').addEventListener('click', () => {
       const fileInput = document.getElementById('csv-file');
       const out = document.getElementById('import-result');
