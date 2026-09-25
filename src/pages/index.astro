@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { supabase, rupees } from '../lib/supabase.js';
+import { getSupabase, rupees } from '../lib/supabase.js';
 
 const q = (Astro.url.searchParams.get('q') ?? '').replace(/[,()%*]/g, ' ').trim();
 const catId = Number(Astro.url.searchParams.get('cat')) || null;
@@ -9,6 +9,7 @@ let cats = [], parents = [], current = null, products = [];
 let debugError = null;
 
 try {
+  const supabase = await getSupabase();
   const { data: catData, error: catErr } = await supabase.from('categories').select('*').order('sort_order');
   if (catErr) throw catErr;
   cats = catData ?? [];
