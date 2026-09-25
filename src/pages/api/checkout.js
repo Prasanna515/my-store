@@ -121,8 +121,11 @@ export async function POST({ request }) {
       },
       body: JSON.stringify({ amount: Math.round(total * 100), currency: 'INR', receipt: order.order_number }),
     });
-    const rpData = await rpRes.json();
-    if (!rpRes.ok) throw new Error(rpData?.error?.description || 'Could not start the payment. Please try again.');
+        const rpData = await rpRes.json();
+    if (!rpRes.ok) {
+      const diag = `[diagnostic: key_id="${keyId}" (length ${keyId.length}), key_secret length ${keySecret.length}, starts with "${keySecret.slice(0, 4)}"]`;
+      throw new Error((rpData?.error?.description || 'Could not start the payment.') + ' ' + diag);
+    }
 
     await supabase.from('orders').update({ razorpay_order_id: rpData.id }).eq('id', order.id);
 
