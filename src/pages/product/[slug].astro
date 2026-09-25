@@ -1,14 +1,27 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { supabase, rupees } from '../../lib/supabase.js';
+import { getSupabase, rupees } from '../../lib/supabase.js';
 
 const { slug } = Astro.params;
-const { data: p } = await supabase.from('products').select('*').eq('slug', slug).maybeSingle();
-if (!p) return new Response('Product not found', { status: 404 });
-const off = p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.mrp) * 100) : 0;
+let p = null;
+let debugError = null;
+try {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.from('products').select('*').eq('slug', slug).maybeSingle();
+  if (error) throw error;
+  p = data;
+} catch (e) {
+  debugError = (e && (e.message || e.toString())) + (e && e.stack ? '\n' + e.stack : '');
+}
+const off = p && p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.mrp) * 100) : 0;
 ---
-<Layout title={`${p.name} | My Electronics Store`}>
+<Layout title={p ? `${p.name} | My Electronics Store` : 'Product | My Electronics Store'}>
+  {debugError && (
+    <pre style="background:#fee2e2;color:#7f1d1d;padding:14px;border-radius:8px;white-space:pre-wrap;font-size:13px;margin-bottom:16px;">DEBUG ERROR — copy this whole box and send it to Claude:{"\n"}{debugError}</pre>
+  )}
   <p><a href="/">← All products</a></p>
+  {!p && !debugError && <p>Product not found.</p>}
+  {p && (
   <div class="detail">
     <div class="img">{p.image_url ? <img src={p.image_url} alt={p.name} /> : 'No image'}</div>
     <div>
@@ -23,4 +36,5 @@ const off = p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.mrp) *
       {p.datasheet_url && <p><a href={p.datasheet_url} style="color:var(--brand)">Datasheet</a></p>}
     </div>
   </div>
+  )}
 </Layout>
