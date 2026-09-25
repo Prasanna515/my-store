@@ -1,3 +1,4 @@
+import { env as cfEnv } from 'cloudflare:workers';
 import { createClient } from '@supabase/supabase-js';
 
 function clean(v) {
@@ -5,11 +6,11 @@ function clean(v) {
   return v.trim().replace(/^['"]|['"]$/g, ''); // remove accidental quotes/spaces/newlines from pasting
 }
 
-// `env` is Cloudflare's runtime environment object (Astro.locals.runtime.env),
-// which contains both plain Variables and Secrets set in the Cloudflare dashboard.
-// Reading from it directly is more reliable here than astro:env.
-export function getSupabase(env) {
-  if (!env) throw new Error('Cloudflare runtime env was not available (Astro.locals.runtime.env is missing).');
+// Cloudflare's runtime environment: contains both plain Variables and Secrets
+// set in the Cloudflare dashboard.
+export function getSupabase() {
+  const env = cfEnv;
+  if (!env) throw new Error('Cloudflare runtime env was not available (cloudflare:workers env is missing).');
   const url = clean(env.SUPABASE_URL);
   const key = clean(env.SUPABASE_ANON_KEY);
   if (!url) throw new Error('SUPABASE_URL is missing or empty. Check Cloudflare > Settings > Variables and Secrets.');
