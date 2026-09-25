@@ -37,6 +37,19 @@ const statuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'r
     <button type="submit" class="btn">Save Settings</button>
   </form>
 
+  <h2 style="margin-top:32px">Import Products from CSV</h2>
+  <div style="background:#fff;padding:16px;border-radius:10px;border:1px solid var(--line);max-width:520px">
+    <p style="color:var(--muted);font-size:14px;margin-top:0">
+      Use the product spreadsheet template, fill in your products, save as CSV (UTF-8), then upload it here.
+      Existing products (matched by SKU) are updated; new SKUs are added. This does not upload photos —
+      set <code>image_file</code> in the spreadsheet for your own reference only, for now.
+    </p>
+    <input type="file" id="csv-file" accept=".csv" style="margin-bottom:10px" />
+    <br />
+    <button id="import-btn" class="btn">Import CSV</button>
+    <div id="import-result" style="margin-top:12px;font-size:14px;white-space:pre-wrap"></div>
+  </div>
+
   <h2 style="margin-top:32px">Recent Orders</h2>
   <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;background:#fff">
@@ -75,7 +88,63 @@ const statuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'r
     </table>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
   <script>
+    document.getElementById('import-btn').addEventListener('click', () => {
+      const fileInput = document.getElementById('csv-file');
+      const out = document.getElementById('import-result');
+      const file = fileInput.files[0];
+      if (!file) {
+        out.textContent = 'Choose a CSV file first.';
+        return;
+      }
+      out.textContent = 'Reading file…';
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (res) => {
+          const rows = res.data.filter((r) => r.sku && String(r.sku).trim());
+          if (rows.length === 0) {
+            out.textContent = 'No valid rows found (check the sku column is filled in).';
+            return;
+          }
+          const batchSize = 100;
+          let processed = 0,
+            skipped = 0,
+            errors = [];
+          for (let i = 0; i < rows.length; i += batchSize) {
+            const batch = rows.slice(i, i + batchSize);
+            out.textContent = `Importing ${Math.min(i + batchSize, rows.length)} of ${rows.length}…`;
+            const r = await fetch('/api/admin/import-products', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rows: batch }),
+            });
+            const data = await r.json();
+            if (!r.ok) {
+              out.textContent = data.error || 'Import failed.';
+              return;
+            }
+            processed += data.processed;
+            skipped += data.skipped;
+            errors = errors.concat(data.errors || []);
+          }
+          out.innerHTML =
+            `Done. Imported/updated: ${processed}, Skipped: ${skipped}` +
+            (errors.length
+              ? `<br><br><b>Issues (first 50):</b><br>` +
+                errors
+                  .slice(0, 50)
+                  .map((e) => e.replace(/</g, '&lt;'))
+                  .join('<br>')
+              : '');
+        },
+        error: (err) => {
+          out.textContent = 'Could not read the file: ' + err.message;
+        },
+      });
+    });
+
     document.getElementById('logout-btn').addEventListener('click', async () => {
       await fetch('/api/admin/logout', { method: 'POST' });
       window.location.href = '/admin/login';
