@@ -9,7 +9,7 @@ let cats = [], parents = [], current = null, products = [];
 let debugError = null;
 
 try {
-  const supabase = getSupabase(Astro.locals.runtime?.env);
+  const supabase = getSupabase();
   const { data: catData, error: catErr } = await supabase.from('categories').select('*').order('sort_order');
   if (catErr) throw catErr;
   cats = catData ?? [];
