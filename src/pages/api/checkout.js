@@ -109,8 +109,8 @@ export async function POST({ request }) {
     // Online payment: create the Razorpay order. Stock is only deducted after
     // the payment is verified (see verify-payment.js), so nothing is reserved
     // for an order that's never actually paid for.
-    const keyId = cfEnv.RAZORPAY_KEY_ID;
-    const keySecret = cfEnv.RAZORPAY_KEY_SECRET;
+    const keyId = (cfEnv.RAZORPAY_KEY_ID || '').trim();
+    const keySecret = (cfEnv.RAZORPAY_KEY_SECRET || '').trim();
     if (!keyId || !keySecret) throw new Error('Razorpay is not configured yet (missing RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET).');
 
     const rpRes = await fetch('https://api.razorpay.com/v1/orders', {
