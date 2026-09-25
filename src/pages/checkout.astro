@@ -13,7 +13,13 @@ try {
 ---
 <Layout title="Checkout | My Electronics Store">
   <h1>Checkout</h1>
-  <form id="checkout-form" style="max-width:520px;display:flex;flex-direction:column;gap:10px;background:#fff;padding:20px;border-radius:10px;border:1px solid var(--line)">
+  <form
+    id="checkout-form"
+    data-flat-shipping={Number(settings.flat_shipping ?? 60)}
+    data-cod-fee={Number(settings.cod_fee ?? 0)}
+    data-free-shipping-above={settings.free_shipping_above != null ? Number(settings.free_shipping_above) : ''}
+    style="max-width:520px;display:flex;flex-direction:column;gap:10px;background:#fff;padding:20px;border-radius:10px;border:1px solid var(--line)"
+  >
     <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid var(--line);border-radius:8px" />
     <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid var(--line);border-radius:8px" />
     <input name="phone" placeholder="Phone (10 digits)" required pattern="[0-9]{10}" style="padding:10px;border:1px solid var(--line);border-radius:8px" />
@@ -40,18 +46,18 @@ try {
   </form>
 
   <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
-  <script
-    define:vars={{
-      flatShipping: Number(settings.flat_shipping ?? 60),
-      codFee: Number(settings.cod_fee ?? 0),
-      freeShippingAbove: settings.free_shipping_above != null ? Number(settings.free_shipping_above) : null,
-    }}
-  >
+  <script>
     import { getCart, clearCart } from '../lib/cart-client.js';
 
     function rupees(n) {
       return '₹' + Number(n).toLocaleString('en-IN');
     }
+
+    const form = document.getElementById('checkout-form');
+    const flatShipping = Number(form.dataset.flatShipping) || 0;
+    const codFee = Number(form.dataset.codFee) || 0;
+    const freeShippingAboveRaw = form.dataset.freeShippingAbove;
+    const freeShippingAbove = freeShippingAboveRaw === '' ? null : Number(freeShippingAboveRaw);
 
     const cart = getCart();
     if (cart.length === 0) window.location.href = '/cart';
@@ -71,16 +77,16 @@ try {
     document.querySelectorAll('input[name=payment_method]').forEach((r) => r.addEventListener('change', updateSummary));
     updateSummary();
 
-    document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const msg = document.getElementById('checkout-msg');
       msg.textContent = '';
-      const fd = new FormData(e.target);
+      const fd = new FormData(form);
       const customer = Object.fromEntries(fd.entries());
       const payment_method = customer.payment_method;
       delete customer.payment_method;
       const items = cart.map((c) => ({ product_id: c.product_id, qty: c.qty, name: c.name }));
-      const btn = e.target.querySelector('button[type=submit]');
+      const btn = form.querySelector('button[type=submit]');
       btn.disabled = true;
       btn.textContent = 'Placing order…';
       try {
