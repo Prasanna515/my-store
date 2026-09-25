@@ -8,6 +8,6 @@
   "vars": {
     "SUPABASE_URL": "https://ivegpdowukuehycgvqbp.supabase.co",
     "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2ZWdwZG93dWt1ZWh5Y2d2cWJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNTAxNDAsImV4cCI6MjEwNTgyNjE0MH0.NX1405fZ3X1UVbkJaMQT2iUUr9P1dUxJhDhKJIENN8s",
-    "RAZORPAY_KEY_ID": "rzp_test_I5Zt0bjedDHtmd"
+    "RAZORPAY_KEY_ID": "rzp_test_TgGwD9ZGxjb5Q5"
   }
 }
