@@ -6,7 +6,7 @@ const { slug } = Astro.params;
 let p = null;
 let debugError = null;
 try {
-  const supabase = await getSupabase();
+  const supabase = getSupabase(Astro.locals.runtime?.env);
   const { data, error } = await supabase.from('products').select('*').eq('slug', slug).maybeSingle();
   if (error) throw error;
   p = data;
