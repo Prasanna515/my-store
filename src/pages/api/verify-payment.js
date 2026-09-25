@@ -21,7 +21,7 @@ export async function POST({ request }) {
       return json(400, { error: 'Missing payment details.' });
     }
 
-    const keySecret = cfEnv.RAZORPAY_KEY_SECRET;
+    const keySecret = (cfEnv.RAZORPAY_KEY_SECRET || '').trim();
     if (!keySecret) throw new Error('Razorpay is not configured (missing RAZORPAY_KEY_SECRET).');
 
     const expected = await hmacSHA256Hex(keySecret, `${razorpay_order_id}|${razorpay_payment_id}`);
