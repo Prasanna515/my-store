@@ -4,5 +4,9 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": { "binding": "ASSETS", "directory": "./dist" },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  "vars": {
+    "SUPABASE_URL": "https://ivegpdowukuehycgvqbp.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2ZWdwZG93dWt1ZWh5Y2d2cWJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNTAxNDAsImV4cCI6MjEwNTgyNjE0MH0.NX1405fZ3X1UVbkJaMQT2iUUr9P1dUxJhDhKJIENN8s"
+  }
 }
