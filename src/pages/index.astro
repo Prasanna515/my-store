@@ -5,19 +5,31 @@ import { supabase, rupees } from '../lib/supabase.js';
 const q = (Astro.url.searchParams.get('q') ?? '').replace(/[,()%*]/g, ' ').trim();
 const catId = Number(Astro.url.searchParams.get('cat')) || null;
 
-const { data: catData } = await supabase.from('categories').select('*').order('sort_order');
-const cats = catData ?? [];
-const parents = cats.filter((c) => !c.parent_id);
-const current = cats.find((c) => c.id === catId);
-const ids = current ? [current.id, ...cats.filter((c) => c.parent_id === current.id).map((c) => c.id)] : null;
+let cats = [], parents = [], current = null, products = [];
+let debugError = null;
 
-let query = supabase.from('products').select('id,slug,name,sku,mrp,selling_price,stock,image_url').order('name').limit(60);
-if (ids) query = query.in('category_id', ids);
-if (q) query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,brand.ilike.%${q}%`);
-const { data } = await query;
-const products = data ?? [];
+try {
+  const { data: catData, error: catErr } = await supabase.from('categories').select('*').order('sort_order');
+  if (catErr) throw catErr;
+  cats = catData ?? [];
+  parents = cats.filter((c) => !c.parent_id);
+  current = cats.find((c) => c.id === catId);
+  const ids = current ? [current.id, ...cats.filter((c) => c.parent_id === current.id).map((c) => c.id)] : null;
+
+  let query = supabase.from('products').select('id,slug,name,sku,mrp,selling_price,stock,image_url').order('name').limit(60);
+  if (ids) query = query.in('category_id', ids);
+  if (q) query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,brand.ilike.%${q}%`);
+  const { data, error: prodErr } = await query;
+  if (prodErr) throw prodErr;
+  products = data ?? [];
+} catch (e) {
+  debugError = (e && (e.message || e.toString())) + (e && e.stack ? '\n' + e.stack : '');
+}
 ---
 <Layout title={current ? `${current.name} | My Electronics Store` : 'My Electronics Store'}>
+  {debugError && (
+    <pre style="background:#fee2e2;color:#7f1d1d;padding:14px;border-radius:8px;white-space:pre-wrap;font-size:13px;margin-bottom:16px;">DEBUG ERROR — copy this whole box and send it to Claude:{"\n"}{debugError}</pre>
+  )}
   <div class="chips">
     <a class={`chip ${!current ? 'on' : ''}`} href="/">All</a>
     {parents.map((c) => <a class={`chip ${current?.id === c.id ? 'on' : ''}`} href={`/?cat=${c.id}`}>{c.name}</a>)}
