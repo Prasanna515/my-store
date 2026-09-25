@@ -1,0 +1,124 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { verifySessionValue, COOKIE } from '../../lib/admin-auth.js';
+import { getServiceSupabase, rupees } from '../../lib/supabase.js';
+
+const sessionValue = Astro.cookies.get(COOKIE)?.value;
+const authed = await verifySessionValue(sessionValue).catch(() => false);
+if (!authed) return Astro.redirect('/admin/login');
+
+const supabase = getServiceSupabase();
+const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).single();
+const { data: orders } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
+const statuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'returned'];
+---
+<Layout title="Admin | My Electronics Store">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <h1 style="margin:0">Admin</h1>
+    <button id="logout-btn" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:8px;padding:8px 14px;cursor:pointer">Log Out</button>
+  </div>
+
+  <h2>Settings</h2>
+  <form id="settings-form" style="max-width:420px;display:flex;flex-direction:column;gap:10px;background:#fff;padding:16px;border-radius:10px;border:1px solid var(--line)">
+    <label><input type="checkbox" name="cod_enabled" checked={settings.cod_enabled} /> Enable Cash on Delivery</label>
+    <label>Flat shipping charge (₹)
+      <input type="number" name="flat_shipping" value={settings.flat_shipping} step="0.01" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px" />
+    </label>
+    <label>COD extra fee (₹, optional)
+      <input type="number" name="cod_fee" value={settings.cod_fee} step="0.01" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px" />
+    </label>
+    <label>Free shipping above (₹, optional — leave blank for none)
+      <input type="number" name="free_shipping_above" value={settings.free_shipping_above ?? ''} step="0.01" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px" />
+    </label>
+    <label>Maximum COD order value (₹, optional — leave blank for none)
+      <input type="number" name="max_cod_value" value={settings.max_cod_value ?? ''} step="0.01" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px" />
+    </label>
+    <div id="settings-msg"></div>
+    <button type="submit" class="btn">Save Settings</button>
+  </form>
+
+  <h2 style="margin-top:32px">Recent Orders</h2>
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;background:#fff">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--line)">
+          <th style="padding:8px">Order</th>
+          <th style="padding:8px">Customer</th>
+          <th style="padding:8px">Total</th>
+          <th style="padding:8px">Payment</th>
+          <th style="padding:8px">Status</th>
+          <th style="padding:8px">Tracking</th>
+          <th style="padding:8px">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {orders?.map((o) => (
+          <tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:8px">{o.order_number}</td>
+            <td style="padding:8px">{o.customer_name}<br /><span style="color:var(--muted);font-size:12px">{o.phone}</span></td>
+            <td style="padding:8px">{rupees(o.total)}</td>
+            <td style="padding:8px">{o.payment_method} / {o.payment_status}</td>
+            <td style="padding:8px">
+              <select class="status-select" data-id={o.id}>
+                {statuses.map((s) => (
+                  <option value={s} selected={o.order_status === s}>{s}</option>
+                ))}
+              </select>
+            </td>
+            <td style="padding:8px">
+              <input type="text" class="tracking-input" data-id={o.id} value={o.tracking_number || ''} placeholder="Tracking #" style="width:120px;padding:4px;border:1px solid var(--line);border-radius:6px" />
+            </td>
+            <td style="padding:8px"><button class="save-order-btn" data-id={o.id} style="padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer">Save</button></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      window.location.href = '/admin/login';
+    });
+
+    document.getElementById('settings-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('settings-msg');
+      msg.textContent = '';
+      const fd = new FormData(e.target);
+      const payload = {
+        cod_enabled: fd.get('cod_enabled') === 'on',
+        flat_shipping: Number(fd.get('flat_shipping')) || 0,
+        cod_fee: Number(fd.get('cod_fee')) || 0,
+        free_shipping_above: fd.get('free_shipping_above') ? Number(fd.get('free_shipping_above')) : null,
+        max_cod_value: fd.get('max_cod_value') ? Number(fd.get('max_cod_value')) : null,
+      };
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      msg.style.color = res.ok ? '#15803d' : '#b91c1c';
+      msg.textContent = res.ok ? 'Saved!' : data.error || 'Failed to save.';
+    });
+
+    document.querySelectorAll('.save-order-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const status = document.querySelector(`.status-select[data-id="${id}"]`).value;
+        const tracking_number = document.querySelector(`.tracking-input[data-id="${id}"]`).value;
+        btn.textContent = 'Saving…';
+        const res = await fetch('/api/admin/update-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_id: Number(id), order_status: status, tracking_number }),
+        });
+        const data = await res.json();
+        btn.textContent = res.ok ? 'Saved' : 'Error';
+        if (!res.ok) alert(data.error || 'Failed to update order.');
+        setTimeout(() => (btn.textContent = 'Save'), 1500);
+      });
+    });
+  </script>
+</Layout>

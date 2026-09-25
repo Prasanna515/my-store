@@ -121,7 +121,7 @@ export async function POST({ request }) {
       },
       body: JSON.stringify({ amount: Math.round(total * 100), currency: 'INR', receipt: order.order_number }),
     });
-        const rpData = await rpRes.json();
+    const rpData = await rpRes.json();
     if (!rpRes.ok) {
       const diag = `[diagnostic: key_id="${keyId}" (length ${keyId.length}), key_secret length ${keySecret.length}, starts with "${keySecret.slice(0, 4)}"]`;
       throw new Error((rpData?.error?.description || 'Could not start the payment.') + ' ' + diag);
