@@ -43,6 +43,6 @@ export function cartSubtotal() {
 }
 
 export function updateCartBadge() {
-  const el = document.querySelector('[data-cart-count]');
-  if (el) el.textContent = String(cartCount());
+  const count = String(cartCount());
+  document.querySelectorAll('[data-cart-count]').forEach((el) => (el.textContent = count));
 }
