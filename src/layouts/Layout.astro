@@ -84,8 +84,14 @@ const q = Astro.url.searchParams.get('q') ?? '';
         color:var(--muted); text-decoration:none; font-size:11px; padding:8px 0 6px;
         background:none; border:0; font-family:inherit; cursor:pointer;
       }
-      .mnav-item .icon { font-size:19px; line-height:1; }
+      .mnav-item .icon { font-size:19px; line-height:1; position:relative; display:inline-block; }
       .mnav-item.active { color:var(--brand); }
+      .mnav-badge {
+        position:absolute; top:-6px; right:-10px; background:var(--brand); color:#fff;
+        font-size:10px; font-weight:700; line-height:1; border-radius:999px; padding:2px 5px; min-width:14px; text-align:center;
+      }
+      .chips { flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+      .chip { flex-shrink:0; }
       input, select, button, .btn { font-size:16px; } /* prevents iOS auto-zoom on focus */
     }
     @media (max-width:480px) {
@@ -114,7 +120,7 @@ const q = Astro.url.searchParams.get('q') ?? '';
   <nav class="mobile-nav">
     <a href="/" class="mnav-item"><span class="icon">🏠</span>Home</a>
     <a href="/account/wishlist" class="mnav-item"><span class="icon">♡</span>Wishlist</a>
-    <a href="/cart" class="mnav-item"><span class="icon">🛒</span>Cart (<span data-cart-count>0</span>)</a>
+    <a href="/cart" class="mnav-item"><span class="icon">🛒<span class="mnav-badge" data-cart-count>0</span></span>Cart</a>
     <a href="/account/orders" class="mnav-item"><span class="icon">📦</span>Orders</a>
     <a href="/account" class="mnav-item"><span class="icon">👤</span>Account</a>
   </nav>
