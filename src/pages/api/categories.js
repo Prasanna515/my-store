@@ -1,4 +1,4 @@
-import { getSupabase } from '../lib/supabase.js';
+import { getSupabase } from '../../lib/supabase.js';
 
 export const prerender = false;
 
