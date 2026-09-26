@@ -15,8 +15,24 @@ const q = Astro.url.searchParams.get('q') ?? '';
     a { color:inherit; text-decoration:none; }
     header { background:#fff; border-bottom:1px solid var(--line); padding:12px 16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; position:sticky; top:0; z-index:5; }
     .logo { font-weight:700; font-size:20px; color:var(--brand); }
-    form.search { flex:1; min-width:220px; display:flex; gap:8px; }
+    form.search { flex:1; min-width:220px; display:flex; gap:8px; position:relative; }
     form.search input { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+    .search-dropdown { position:absolute; top:calc(100% + 6px); left:0; right:0; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.08); max-height:400px; overflow-y:auto; z-index:20; display:none; }
+    .search-dropdown.open { display:block; }
+    .search-row { display:flex; gap:10px; align-items:center; padding:8px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer; }
+    .search-row:hover { background:#f8fafc; }
+    .search-row:last-child { border-bottom:none; }
+    .search-thumb { width:40px; height:40px; border-radius:6px; background:#eef2f7; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; }
+    .search-thumb img { width:100%; height:100%; object-fit:contain; }
+    .search-info { flex:1; min-width:0; }
+    .search-name { font-size:14px; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .search-meta { font-size:12px; color:var(--muted); }
+    .search-price { font-size:14px; font-weight:700; white-space:nowrap; }
+    .search-empty { padding:12px; color:var(--muted); font-size:14px; }
+    .recent-label { padding:8px 12px 4px; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; }
+    .recent-clear { color:var(--brand); cursor:pointer; }
+    .recent-row { padding:8px 12px; font-size:14px; cursor:pointer; }
+    .recent-row:hover { background:#f8fafc; }
     button, .btn { background:var(--brand); color:#fff; border:0; border-radius:8px; padding:10px 16px; font-size:15px; cursor:pointer; }
     main { max-width:1150px; margin:0 auto; padding:16px; }
     .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
@@ -36,9 +52,10 @@ const q = Astro.url.searchParams.get('q') ?? '';
 <body>
   <header>
     <a class="logo" href="/">⚡ My Electronics Store</a>
-    <form class="search" action="/" method="get">
-      <input name="q" value={q} placeholder="Search parts, e.g. ESP32, HC-SR04, L298N" />
+    <form class="search" action="/" method="get" id="search-form">
+      <input name="q" id="search-input" value={q} placeholder="Search parts, e.g. ESP32, HC-SR04, L298N" autocomplete="off" />
       <button type="submit">Search</button>
+      <div class="search-dropdown" id="search-dropdown"></div>
     </form>
     <a href="/cart" class="btn" style="background:#fff;color:var(--brand);border:1px solid var(--brand)">🛒 Cart (<span data-cart-count>0</span>)</a>
   </header>
@@ -46,6 +63,121 @@ const q = Astro.url.searchParams.get('q') ?? '';
   <script>
     import { updateCartBadge } from '../lib/cart-client.js';
     updateCartBadge();
+
+    const RECENT_KEY = 'recent_searches_v1';
+    const input = document.getElementById('search-input');
+    const dropdown = document.getElementById('search-dropdown');
+    const form = document.getElementById('search-form');
+
+    function getRecent() {
+      try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch { return []; }
+    }
+    function addRecent(term) {
+      term = term.trim();
+      if (!term) return;
+      let recent = getRecent().filter((t) => t.toLowerCase() !== term.toLowerCase());
+      recent.unshift(term);
+      recent = recent.slice(0, 5);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+    }
+    function clearRecent() {
+      localStorage.removeItem(RECENT_KEY);
+    }
+
+    function rupees(n) {
+      return '₹' + Number(n).toLocaleString('en-IN');
+    }
+
+    function openDropdown() {
+      dropdown.classList.add('open');
+    }
+    function closeDropdown() {
+      dropdown.classList.remove('open');
+    }
+
+    function renderRecent() {
+      const recent = getRecent();
+      if (recent.length === 0) {
+        dropdown.innerHTML = '';
+        closeDropdown();
+        return;
+      }
+      dropdown.innerHTML =
+        `<div class="recent-label"><span>Recent searches</span><span class="recent-clear" id="recent-clear-btn">Clear</span></div>` +
+        recent.map((t) => `<div class="recent-row" data-term="${t.replace(/"/g, '&quot;')}">🕘 ${t}</div>`).join('');
+      openDropdown();
+      document.getElementById('recent-clear-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearRecent();
+        renderRecent();
+      });
+      dropdown.querySelectorAll('.recent-row').forEach((row) => {
+        row.addEventListener('click', () => {
+          input.value = row.dataset.term;
+          form.submit();
+        });
+      });
+    }
+
+    function renderResults(results) {
+      if (results.length === 0) {
+        dropdown.innerHTML = '<div class="search-empty">No products found.</div>';
+        openDropdown();
+        return;
+      }
+      dropdown.innerHTML = results
+        .map(
+          (p) => `
+        <a class="search-row" href="/product/${p.slug}">
+          <div class="search-thumb">${p.image_url ? `<img src="${p.image_url}" alt="" />` : '📦'}</div>
+          <div class="search-info">
+            <div class="search-name">${p.name}</div>
+            <div class="search-meta">${p.sku}${p.stock <= 0 ? ' · Out of stock' : ''}</div>
+          </div>
+          <div class="search-price">${rupees(p.selling_price)}</div>
+        </a>`
+        )
+        .join('');
+      openDropdown();
+    }
+
+    let debounceTimer;
+    input.addEventListener('input', () => {
+      const term = input.value.trim();
+      clearTimeout(debounceTimer);
+      if (term.length === 0) {
+        renderRecent();
+        return;
+      }
+      if (term.length < 2) {
+        closeDropdown();
+        return;
+      }
+      debounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
+          const data = await res.json();
+          renderResults(data.results || []);
+        } catch {
+          closeDropdown();
+        }
+      }, 250);
+    });
+
+    input.addEventListener('focus', () => {
+      if (input.value.trim().length === 0) renderRecent();
+    });
+
+    form.addEventListener('submit', () => {
+      addRecent(input.value);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!form.contains(e.target)) closeDropdown();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDropdown();
+    });
   </script>
 </body>
 </html>
