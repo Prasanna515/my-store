@@ -60,6 +60,12 @@ const q = Astro.url.searchParams.get('q') ?? '';
     .off { color:#15803d; font-size:13px; } .out { color:#b91c1c; font-size:13px; }
     .detail { display:grid; grid-template-columns:1fr; gap:24px; background:#fff; padding:16px; border-radius:10px; border:1px solid var(--line); }
     @media (min-width:768px){ .detail { grid-template-columns:1fr 1fr; } }
+    footer { background:#f1f5f9; border-top:1px solid var(--line); margin-top:40px; }
+    .footer-grid { max-width:1150px; margin:0 auto; padding:32px 16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:24px; }
+    .footer-col h4 { margin:0 0 10px; font-size:15px; }
+    .footer-col a { display:block; color:var(--ink); text-decoration:none; padding:4px 0; font-size:14px; }
+    .footer-col a:hover { color:var(--brand); }
+    .footer-bottom { border-top:1px solid var(--line); padding:16px; text-align:center; font-size:13px; color:var(--muted); }
   </style>
 </head>
 <body>
@@ -80,10 +86,44 @@ const q = Astro.url.searchParams.get('q') ?? '';
     <a href="/cart" class="btn" style="background:#fff;color:var(--brand);border:1px solid var(--brand)">🛒 Cart (<span data-cart-count>0</span>)</a>
   </header>
   <main><slot /></main>
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Information</h4>
+        <a href="/track-order">Track Your Order</a>
+        <a href="/faq">FAQ</a>
+        <a href="/contact">Contact Us</a>
+      </div>
+      <div class="footer-col">
+        <h4>My Account</h4>
+        <a href="/cart">Cart</a>
+        <a href="/checkout">Checkout</a>
+        <a href="/account">My Account</a>
+        <a href="/account/orders">My Orders</a>
+      </div>
+      <div class="footer-col">
+        <h4>Policies</h4>
+        <a href="/privacy-policy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+        <a href="/shipping-refund">Shipping &amp; Refund</a>
+      </div>
+      <div class="footer-col">
+        <h4>Got Questions?</h4>
+        <p style="font-size:14px;color:var(--muted);margin:0 0 8px">Email us anytime</p>
+        <a href="/contact">your-email@example.com</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      We accept UPI · Cards · Net Banking · Cash on Delivery (via Razorpay)
+      <br />© <span id="footer-year"></span> My Electronics Store. All rights reserved.
+    </div>
+  </footer>
   <script>
     import { updateCartBadge } from '../lib/cart-client.js';
     import { getBrowserSupabase } from '../lib/supabase-browser.js';
     updateCartBadge();
+    const yearEl = document.getElementById('footer-year');
+    if (yearEl) yearEl.textContent = String(new Date().getFullYear());
 
     (async () => {
       try {

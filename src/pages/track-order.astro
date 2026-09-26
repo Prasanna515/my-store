@@ -1,0 +1,39 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Track Your Order | My Electronics Store">
+  <div style="max-width:420px;margin:0 auto">
+    <h1>Track Your Order</h1>
+    <form id="track-form" style="display:flex;flex-direction:column;gap:10px;background:#fff;padding:20px;border-radius:10px;border:1px solid var(--line)">
+      <input name="order_number" placeholder="Order number, e.g. ORD-1013" required style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+      <input name="phone" placeholder="Phone number used at checkout" required style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+      <button type="submit" class="btn">Track Order</button>
+    </form>
+    <div id="track-result" style="margin-top:16px"></div>
+  </div>
+  <script>
+    const form = document.getElementById('track-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const out = document.getElementById('track-result');
+      out.innerHTML = 'Looking up your order…';
+      const fd = new FormData(form);
+      const params = new URLSearchParams({ order_number: fd.get('order_number'), phone: fd.get('phone') });
+      const res = await fetch(`/api/track-order?${params}`);
+      const data = await res.json();
+      if (!res.ok) {
+        out.innerHTML = `<p style="color:#b91c1c">${data.error}</p>`;
+        return;
+      }
+      const o = data.order;
+      out.innerHTML = `
+        <div style="background:#fff;padding:16px;border-radius:10px;border:1px solid var(--line)">
+          <p><b>${o.order_number}</b> — placed ${new Date(o.created_at).toLocaleDateString('en-IN')}</p>
+          <p>Total: ₹${Number(o.total).toLocaleString('en-IN')}</p>
+          <p>Payment: ${o.payment_method} (${o.payment_status})</p>
+          <p>Status: <b>${o.order_status}</b></p>
+          ${o.tracking_number ? `<p>Tracking number: ${o.tracking_number}</p>` : ''}
+        </div>`;
+    });
+  </script>
+</Layout>
