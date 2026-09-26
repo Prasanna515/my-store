@@ -1,0 +1,58 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="My Orders | My Electronics Store">
+  <p><a href="/account">← My Account</a></p>
+  <h1>My Orders</h1>
+  <div id="orders-root">Loading…</div>
+  <script>
+    import { getBrowserSupabase } from '../../lib/supabase-browser.js';
+
+    function rupees(n) {
+      return '₹' + Number(n).toLocaleString('en-IN');
+    }
+
+    async function init() {
+      const supabase = await getBrowserSupabase();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const root = document.getElementById('orders-root');
+      if (!session) {
+        window.location.href = '/account/login?next=/account/orders';
+        return;
+      }
+
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('order_number,total,payment_method,payment_status,order_status,tracking_number,created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        root.innerHTML = `<p style="color:#b91c1c">Could not load orders: ${error.message}</p>`;
+        return;
+      }
+      if (!orders || orders.length === 0) {
+        root.innerHTML = `<p>No orders yet. Orders you place while logged in will show up here.</p>`;
+        return;
+      }
+
+      root.innerHTML = orders
+        .map(
+          (o) => `
+        <div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <b>${o.order_number}</b>
+            <span>${rupees(o.total)}</span>
+          </div>
+          <div style="color:var(--muted);font-size:14px;margin-top:4px">
+            ${new Date(o.created_at).toLocaleDateString('en-IN')} · ${o.payment_method} (${o.payment_status}) · Status: <b>${o.order_status}</b>
+            ${o.tracking_number ? `<br/>Tracking: ${o.tracking_number}` : ''}
+          </div>
+        </div>`
+        )
+        .join('');
+    }
+    init();
+  </script>
+</Layout>

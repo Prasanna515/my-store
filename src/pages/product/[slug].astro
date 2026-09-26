@@ -38,6 +38,7 @@ const off = p && p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.m
         <div id="add-to-cart" data-product={JSON.stringify({ product_id: p.id, sku: p.sku, name: p.name, price: p.selling_price, image_url: p.image_url })} style="margin-top:16px">
           <input type="number" id="qty" value="1" min="1" max={p.stock} style="width:60px;padding:8px;border:1px solid var(--line);border-radius:8px;margin-right:8px" />
           <button id="add-btn" class="btn">Add to Cart</button>
+          <button id="wishlist-btn" data-product-id={p.id} style="margin-left:8px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 14px;cursor:pointer;font-size:16px">♡</button>
           <span id="add-msg" style="margin-left:10px;color:#15803d"></span>
         </div>
       )}
@@ -46,6 +47,8 @@ const off = p && p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.m
   )}
   <script>
     import { addToCart } from '../../lib/cart-client.js';
+    import { getBrowserSupabase } from '../../lib/supabase-browser.js';
+
     const wrap = document.getElementById('add-to-cart');
     if (wrap) {
       const product = JSON.parse(wrap.dataset.product);
@@ -55,6 +58,47 @@ const off = p && p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.m
         const msg = document.getElementById('add-msg');
         msg.textContent = 'Added to cart!';
         setTimeout(() => (msg.textContent = ''), 2000);
+      });
+
+      const wishBtn = document.getElementById('wishlist-btn');
+      const productId = Number(wishBtn.dataset.productId);
+      let inWishlist = false;
+      let supabase;
+
+      (async () => {
+        supabase = await getBrowserSupabase();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await supabase.from('wishlist').select('id').eq('product_id', productId).maybeSingle();
+        if (data) {
+          inWishlist = true;
+          wishBtn.textContent = '♥';
+          wishBtn.style.color = '#b91c1c';
+        }
+      })();
+
+      wishBtn.addEventListener('click', async () => {
+        if (!supabase) supabase = await getBrowserSupabase();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          window.location.href = `/account/login?next=${encodeURIComponent(window.location.pathname)}`;
+          return;
+        }
+        if (inWishlist) {
+          await supabase.from('wishlist').delete().eq('product_id', productId);
+          inWishlist = false;
+          wishBtn.textContent = '♡';
+          wishBtn.style.color = '';
+        } else {
+          await supabase.from('wishlist').insert({ product_id: productId, user_id: session.user.id });
+          inWishlist = true;
+          wishBtn.textContent = '♥';
+          wishBtn.style.color = '#b91c1c';
+        }
       });
     }
   </script>

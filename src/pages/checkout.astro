@@ -48,6 +48,7 @@ try {
   <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
   <script>
     import { getCart, clearCart } from '../lib/cart-client.js';
+    import { getBrowserSupabase } from '../lib/supabase-browser.js';
 
     function rupees(n) {
       return '₹' + Number(n).toLocaleString('en-IN');
@@ -90,10 +91,20 @@ try {
       btn.disabled = true;
       btn.textContent = 'Placing order…';
       try {
+        let access_token = null;
+        try {
+          const supabase = await getBrowserSupabase();
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          access_token = session?.access_token || null;
+        } catch {
+          // not logged in — proceed as a guest order
+        }
         const res = await fetch('/api/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items, customer, payment_method }),
+          body: JSON.stringify({ items, customer, payment_method, access_token }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Something went wrong.');

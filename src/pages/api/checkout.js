@@ -1,4 +1,4 @@
-import { getServiceSupabase } from '../../lib/supabase.js';
+import { getServiceSupabase, getSupabase } from '../../lib/supabase.js';
 import { env as cfEnv } from 'cloudflare:workers';
 
 export const prerender = false;
@@ -10,7 +10,19 @@ function json(status, obj) {
 export async function POST({ request }) {
   try {
     const body = await request.json();
-    const { items, customer, payment_method } = body || {};
+    const { items, customer, payment_method, access_token } = body || {};
+
+    // If the customer is logged in, verify their token (never trust a client-supplied user id directly).
+    let user_id = null;
+    if (access_token) {
+      try {
+        const anon = getSupabase();
+        const { data } = await anon.auth.getUser(access_token);
+        if (data?.user) user_id = data.user.id;
+      } catch {
+        // invalid/expired token — proceed as a guest order rather than failing checkout
+      }
+    }
 
     if (!Array.isArray(items) || items.length === 0) return json(400, { error: 'Your cart is empty.' });
     if (
@@ -90,6 +102,7 @@ export async function POST({ request }) {
         total,
         payment_method,
         payment_status: payment_method === 'cod' ? 'cod_due' : 'pending',
+        user_id,
       })
       .select()
       .single();

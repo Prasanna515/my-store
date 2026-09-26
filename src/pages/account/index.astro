@@ -1,0 +1,38 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="My Account | My Electronics Store">
+  <div id="account-root">Loading…</div>
+  <script>
+    import { getBrowserSupabase } from '../../lib/supabase-browser.js';
+
+    async function init() {
+      const supabase = await getBrowserSupabase();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const root = document.getElementById('account-root');
+      if (!session) {
+        window.location.href = '/account/login?next=/account';
+        return;
+      }
+      const user = session.user;
+      root.innerHTML = `
+        <div style="max-width:420px;margin:0 auto;background:#fff;padding:24px;border-radius:10px;border:1px solid var(--line)">
+          <h1>My Account</h1>
+          <p><b>${user.user_metadata?.name || 'Customer'}</b><br/>${user.email}</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+            <a class="btn" href="/account/orders" style="text-align:center">📦 My Orders</a>
+            <a class="btn" href="/account/wishlist" style="text-align:center;background:#fff;color:var(--brand);border:1px solid var(--brand)">♡ My Wishlist</a>
+            <button id="logout-btn" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:8px;padding:10px 16px;cursor:pointer">Log Out</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('logout-btn').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.href = '/';
+      });
+    }
+    init();
+  </script>
+</Layout>

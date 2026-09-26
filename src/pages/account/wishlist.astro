@@ -1,0 +1,66 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="My Wishlist | My Electronics Store">
+  <p><a href="/account">← My Account</a></p>
+  <h1>My Wishlist</h1>
+  <div id="wishlist-root">Loading…</div>
+  <script>
+    import { getBrowserSupabase } from '../../lib/supabase-browser.js';
+
+    function rupees(n) {
+      return '₹' + Number(n).toLocaleString('en-IN');
+    }
+
+    async function init() {
+      const supabase = await getBrowserSupabase();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const root = document.getElementById('wishlist-root');
+      if (!session) {
+        window.location.href = '/account/login?next=/account/wishlist';
+        return;
+      }
+
+      const { data: rows, error } = await supabase
+        .from('wishlist')
+        .select('id, products ( slug, name, sku, selling_price, image_url, stock )')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        root.innerHTML = `<p style="color:#b91c1c">Could not load wishlist: ${error.message}</p>`;
+        return;
+      }
+      if (!rows || rows.length === 0) {
+        root.innerHTML = `<p>Your wishlist is empty. Tap the ♡ on any product to save it here.</p>`;
+        return;
+      }
+
+      root.innerHTML = `<div class="grid">${rows
+        .map((r) => {
+          const p = r.products;
+          if (!p) return '';
+          return `
+          <div class="card">
+            <a href="/product/${p.slug}">
+              <div class="img">${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" />` : 'No image'}</div>
+              <div class="name">${p.name}</div>
+              <div class="price">${rupees(p.selling_price)}</div>
+              ${p.stock <= 0 ? '<div class="out">Out of stock</div>' : ''}
+            </a>
+            <button data-remove="${r.id}" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:6px;padding:6px;cursor:pointer;margin-top:4px">Remove</button>
+          </div>`;
+        })
+        .join('')}</div>`;
+
+      root.querySelectorAll('[data-remove]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await supabase.from('wishlist').delete().eq('id', btn.dataset.remove);
+          init();
+        });
+      });
+    }
+    init();
+  </script>
+</Layout>

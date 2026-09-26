@@ -1,0 +1,45 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+<Layout title="Create Account | My Electronics Store">
+  <div style="max-width:360px;margin:40px auto;background:#fff;padding:24px;border-radius:10px;border:1px solid var(--line)">
+    <h1>Create Account</h1>
+    <form id="signup-form" style="display:flex;flex-direction:column;gap:10px">
+      <input type="text" name="name" placeholder="Full name" required style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+      <input type="email" name="email" placeholder="Email" required style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+      <input type="tel" name="phone" placeholder="Phone" style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+      <input type="password" name="password" placeholder="Password (min 6 characters)" required minlength="6" style="padding:10px;border:1px solid var(--line);border-radius:8px" />
+      <div id="signup-msg" style="color:#b91c1c"></div>
+      <button type="submit" class="btn">Create Account</button>
+    </form>
+    <p style="margin-top:14px;font-size:14px">Already have an account? <a href="/account/login" style="color:var(--brand)">Log in</a></p>
+  </div>
+  <script>
+    import { getBrowserSupabase } from '../../lib/supabase-browser.js';
+
+    const form = document.getElementById('signup-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('signup-msg');
+      msg.style.color = '#b91c1c';
+      msg.textContent = '';
+      const fd = new FormData(form);
+      const supabase = await getBrowserSupabase();
+      const { data, error } = await supabase.auth.signUp({
+        email: fd.get('email'),
+        password: fd.get('password'),
+        options: { data: { name: fd.get('name'), phone: fd.get('phone') } },
+      });
+      if (error) {
+        msg.textContent = error.message;
+        return;
+      }
+      if (data.session) {
+        window.location.href = '/account';
+      } else {
+        msg.style.color = '#15803d';
+        msg.textContent = 'Account created! Check your email to confirm it, then log in.';
+      }
+    });
+  </script>
+</Layout>
