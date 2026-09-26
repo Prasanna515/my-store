@@ -15,6 +15,19 @@ const q = Astro.url.searchParams.get('q') ?? '';
     a { color:inherit; text-decoration:none; }
     header { background:#fff; border-bottom:1px solid var(--line); padding:12px 16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; position:sticky; top:0; z-index:5; }
     .logo { font-weight:700; font-size:20px; color:var(--brand); }
+    .cat-menu-wrap { position:relative; }
+    .cat-menu-btn { background:#fff; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:10px 14px; font-size:15px; cursor:pointer; display:flex; align-items:center; gap:8px; white-space:nowrap; }
+    .cat-panel { position:absolute; top:calc(100% + 6px); left:0; width:300px; max-height:70vh; overflow-y:auto; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.08); z-index:30; display:none; }
+    .cat-panel.open { display:block; }
+    .cat-row { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #f1f5f9; cursor:pointer; font-weight:600; color:var(--ink); }
+    .cat-row:hover { background:#f8fafc; }
+    .cat-row .chev { transition:transform 0.15s; color:var(--muted); }
+    .cat-row.expanded .chev { transform:rotate(90deg); }
+    .cat-sub-list { display:none; background:#f8fafc; }
+    .cat-sub-list.open { display:block; }
+    .cat-sub-row, .cat-viewall-row { display:block; padding:10px 16px 10px 28px; font-size:14px; color:var(--ink); border-bottom:1px solid #eef2f7; }
+    .cat-sub-row:hover, .cat-viewall-row:hover { background:#eef2f7; }
+    .cat-viewall-row { color:var(--brand); font-weight:600; font-size:13px; }
     form.search { flex:1; min-width:220px; display:flex; gap:8px; position:relative; }
     form.search input { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
     .search-dropdown { position:absolute; top:calc(100% + 6px); left:0; right:0; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.08); max-height:400px; overflow-y:auto; z-index:20; display:none; }
@@ -52,6 +65,10 @@ const q = Astro.url.searchParams.get('q') ?? '';
 <body>
   <header>
     <a class="logo" href="/">⚡ My Electronics Store</a>
+    <div class="cat-menu-wrap">
+      <button class="cat-menu-btn" id="cat-menu-btn" type="button">☰ All Categories <span style="font-size:11px">▾</span></button>
+      <div class="cat-panel" id="cat-panel"></div>
+    </div>
     <form class="search" action="/" method="get" id="search-form">
       <input name="q" id="search-input" value={q} placeholder="Search parts, e.g. ESP32, HC-SR04, L298N" autocomplete="off" />
       <button type="submit">Search</button>
@@ -63,6 +80,64 @@ const q = Astro.url.searchParams.get('q') ?? '';
   <script>
     import { updateCartBadge } from '../lib/cart-client.js';
     updateCartBadge();
+
+    const catBtn = document.getElementById('cat-menu-btn');
+    const catPanel = document.getElementById('cat-panel');
+    let catsLoaded = false;
+
+    function renderCategoryPanel(parents, children) {
+      catPanel.innerHTML =
+        `<a class="cat-row" href="/" style="display:block">All Products</a>` +
+        parents
+          .map(
+            (p) => `
+        <div>
+          <div class="cat-row" data-id="${p.id}"><span>${p.name}</span><span class="chev">›</span></div>
+          <div class="cat-sub-list" data-sub-for="${p.id}">
+            <a class="cat-viewall-row" href="/?cat=${p.id}">View all ${p.name}</a>
+            ${(children[p.id] || []).map((c) => `<a class="cat-sub-row" href="/?cat=${c.id}">${c.name}</a>`).join('')}
+          </div>
+        </div>`
+          )
+          .join('');
+
+      catPanel.querySelectorAll('.cat-row[data-id]').forEach((row) => {
+        row.addEventListener('click', () => {
+          const id = row.dataset.id;
+          const sub = catPanel.querySelector(`.cat-sub-list[data-sub-for="${id}"]`);
+          const isOpen = sub.classList.contains('open');
+          catPanel.querySelectorAll('.cat-sub-list.open').forEach((s) => s.classList.remove('open'));
+          catPanel.querySelectorAll('.cat-row.expanded').forEach((r) => r.classList.remove('expanded'));
+          if (!isOpen) {
+            sub.classList.add('open');
+            row.classList.add('expanded');
+          }
+        });
+      });
+    }
+
+    async function loadCategoryPanel() {
+      if (catsLoaded) return;
+      catPanel.innerHTML = '<div class="search-empty">Loading…</div>';
+      try {
+        const res = await fetch('/api/categories');
+        const data = await res.json();
+        renderCategoryPanel(data.parents || [], data.children || {});
+        catsLoaded = true;
+      } catch {
+        catPanel.innerHTML = '<div class="search-empty">Could not load categories.</div>';
+      }
+    }
+
+    catBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = !catPanel.classList.contains('open');
+      catPanel.classList.toggle('open');
+      if (willOpen) loadCategoryPanel();
+    });
+    document.addEventListener('click', (e) => {
+      if (!catBtn.contains(e.target) && !catPanel.contains(e.target)) catPanel.classList.remove('open');
+    });
 
     const RECENT_KEY = 'recent_searches_v1';
     const input = document.getElementById('search-input');
