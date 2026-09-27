@@ -11,7 +11,7 @@ try {
   // fall back to the defaults above if settings can't be read
 }
 ---
-<Layout title="Checkout | My Electronics Store">
+<Layout title="Checkout | ROBO9">
   <h1>Checkout</h1>
   <form
     id="checkout-form"
@@ -120,7 +120,7 @@ try {
           amount: data.amount,
           currency: data.currency,
           order_id: data.razorpay_order_id,
-          name: 'My Electronics Store',
+          name: 'ROBO9',
           prefill: { name: data.customer_name, email: data.email, contact: data.phone },
           handler: async function (response) {
             const verifyRes = await fetch('/api/verify-payment', {

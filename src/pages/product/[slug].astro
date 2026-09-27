@@ -15,7 +15,7 @@ try {
 }
 const off = p && p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.mrp) * 100) : 0;
 ---
-<Layout title={p ? `${p.name} | My Electronics Store` : 'Product | My Electronics Store'}>
+<Layout title={p ? `${p.name} | ROBO9` : 'Product | ROBO9'}>
   {debugError && (
     <pre style="background:#fee2e2;color:#7f1d1d;padding:14px;border-radius:8px;white-space:pre-wrap;font-size:13px;margin-bottom:16px;">DEBUG ERROR — copy this whole box and send it to Claude:{"\n"}{debugError}</pre>
   )}
