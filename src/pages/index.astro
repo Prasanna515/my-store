@@ -40,7 +40,7 @@ try {
     <div class="grid">
       {products.map((p) => (
         <a class="card" href={`/product/${p.slug}`}>
-          <div class="img">{p.image_url ? <img src={p.image_url} alt={p.name} loading="lazy" /> : 'No image'}</div>
+          <div class="img">{p.image_url && <img src={p.image_url} alt={p.name} loading="lazy" />}</div>
           <div class="name">{p.name}</div>
           <div><span class="price">{rupees(p.selling_price)}</span>{p.mrp > p.selling_price && <span class="mrp">{rupees(p.mrp)}</span>}</div>
           {p.stock <= 0 && <div class="out">Out of stock</div>}
