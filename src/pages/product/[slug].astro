@@ -23,7 +23,7 @@ const off = p && p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.m
   {!p && !debugError && <p>Product not found.</p>}
   {p && (
   <div class="detail">
-    <div class="img">{p.image_url && <img src={p.image_url} alt={p.name} />}</div>
+    <div class="img">{p.image_url ? <img src={p.image_url} alt={p.name} /> : 'No image'}</div>
     <div>
       <h1 style="margin-top:0">{p.name}</h1>
       <p style="color:var(--muted)">SKU: {p.sku}{p.brand && ` · Brand: ${p.brand}`}</p>
