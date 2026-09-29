@@ -13,6 +13,9 @@ try {
 ---
 <Layout title="Checkout | ROBO9">
   <h1>Checkout</h1>
+
+  <div id="order-items" style="max-width:520px;margin-bottom:16px"></div>
+
   <form
     id="checkout-form"
     data-flat-shipping={Number(settings.flat_shipping ?? 60)}
@@ -47,7 +50,7 @@ try {
 
   <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
   <script>
-    import { getCart, clearCart } from '../lib/cart-client.js';
+    import { getCart, clearCart, setQty, removeFromCart } from '../lib/cart-client.js';
     import { getBrowserSupabase } from '../lib/supabase-browser.js';
 
     function rupees(n) {
@@ -62,6 +65,49 @@ try {
 
     const cart = getCart();
     if (cart.length === 0) window.location.href = '/cart';
+
+    function renderItems() {
+      const root = document.getElementById('order-items');
+      root.innerHTML = cart
+        .map(
+          (c) => `
+        <div style="display:flex;gap:10px;align-items:center;background:#fff;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px">
+          <div style="flex:1;font-size:14px">${c.name}<br><span style="color:var(--muted);font-size:12px">${c.sku || ''}</span></div>
+          <input type="number" min="1" value="${c.qty}" data-id="${c.product_id}" class="checkout-qty" style="width:56px;padding:6px;border:1px solid var(--line);border-radius:6px" />
+          <div style="width:90px;text-align:right;font-size:14px">${rupees(c.qty * c.price)}</div>
+          <button type="button" data-remove="${c.product_id}" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:6px;padding:6px 10px;cursor:pointer">Remove</button>
+        </div>`
+        )
+        .join('');
+
+      root.querySelectorAll('.checkout-qty').forEach((inp) => {
+        inp.addEventListener('change', (e) => {
+          const id = e.target.dataset.id;
+          const qty = Math.max(1, parseInt(e.target.value) || 1);
+          setQty(id, qty);
+          const updated = getCart();
+          cart.length = 0;
+          cart.push(...updated);
+          renderItems();
+          updateSummary();
+        });
+      });
+      root.querySelectorAll('[data-remove]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          removeFromCart(btn.dataset.remove);
+          const updated = getCart();
+          if (updated.length === 0) {
+            window.location.href = '/cart';
+            return;
+          }
+          cart.length = 0;
+          cart.push(...updated);
+          renderItems();
+          updateSummary();
+        });
+      });
+    }
+    renderItems();
 
     function updateSummary() {
       const subtotal = cart.reduce((s, c) => s + c.qty * Number(c.price), 0);
