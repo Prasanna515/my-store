@@ -1,5 +1,4 @@
 import { getServiceSupabase, getSupabase } from '../../lib/supabase.js';
-import { sendEmail, orderEmailHtml } from '../../lib/email.js';
 import { env as cfEnv } from 'cloudflare:workers';
 
 export const prerender = false;
@@ -117,27 +116,6 @@ export async function POST({ request }) {
     if (payment_method === 'cod') {
       const { error: stockErr } = await supabase.rpc('deduct_order_stock', { p_order_id: order.id });
       if (stockErr) throw stockErr;
-
-      const emailHtml = orderEmailHtml({
-        order_number: order.order_number,
-        customer_name: customer.name,
-        items: orderItems,
-        subtotal,
-        shipping_charge: shipping,
-        cod_fee: codFee,
-        total,
-        payment_method,
-        address_line: customer.address_line,
-        city: customer.city,
-        state: customer.state,
-        pincode: customer.pincode,
-      });
-      await sendEmail({ to: customer.email, subject: `Order Confirmed — ${order.order_number}`, html: emailHtml });
-      const adminEmail = (cfEnv.ADMIN_NOTIFY_EMAIL || '').trim();
-      if (adminEmail) {
-        await sendEmail({ to: adminEmail, subject: `New Order — ${order.order_number}`, html: emailHtml });
-      }
-
       return json(200, { order_number: order.order_number, payment_method: 'cod' });
     }
 
