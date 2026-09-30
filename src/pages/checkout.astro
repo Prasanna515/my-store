@@ -66,25 +66,62 @@ try {
     const cart = getCart();
     if (cart.length === 0) window.location.href = '/cart';
 
+    let stockMap = {};
+
+    async function loadStock() {
+      try {
+        const supabase = await getBrowserSupabase();
+        const ids = cart.map((c) => c.product_id);
+        const { data } = await supabase.from('products').select('id,stock').in('id', ids);
+        (data || []).forEach((p) => {
+          stockMap[p.id] = p.stock;
+        });
+        let changed = false;
+        cart.forEach((c) => {
+          const max = stockMap[c.product_id];
+          if (typeof max === 'number' && c.qty > Math.max(1, max)) {
+            c.qty = Math.max(1, max);
+            setQty(c.product_id, c.qty);
+            changed = true;
+          }
+        });
+        if (changed) updateSummary();
+      } catch {
+        // if this fails, checkout still enforces stock server-side on submit
+      }
+    }
+
     function renderItems() {
       const root = document.getElementById('order-items');
       root.innerHTML = cart
-        .map(
-          (c) => `
+        .map((c) => {
+          const max = stockMap[c.product_id];
+          const maxAttr = typeof max === 'number' ? max : '';
+          const lowStockNote =
+            typeof max === 'number' && max <= 5 ? `<div style="color:#b91c1c;font-size:12px">Only ${max} left in stock</div>` : '';
+          return `
         <div style="display:flex;gap:10px;align-items:center;background:#fff;padding:10px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px">
-          <div style="flex:1;font-size:14px">${c.name}<br><span style="color:var(--muted);font-size:12px">${c.sku || ''}</span></div>
-          <input type="number" min="1" value="${c.qty}" data-id="${c.product_id}" class="checkout-qty" style="width:56px;padding:6px;border:1px solid var(--line);border-radius:6px" />
+          <div style="flex:1;font-size:14px">${c.name}<br><span style="color:var(--muted);font-size:12px">${c.sku || ''}</span>${lowStockNote}</div>
+          <input type="number" min="1" max="${maxAttr}" value="${c.qty}" data-id="${c.product_id}" data-max="${maxAttr}" class="checkout-qty" style="width:56px;padding:6px;border:1px solid var(--line);border-radius:6px" />
           <div style="width:90px;text-align:right;font-size:14px">${rupees(c.qty * c.price)}</div>
           <button type="button" data-remove="${c.product_id}" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:6px;padding:6px 10px;cursor:pointer">Remove</button>
-        </div>`
-        )
+        </div>`;
+        })
         .join('');
 
       root.querySelectorAll('.checkout-qty').forEach((inp) => {
+        const clampValue = () => {
+          const max = parseInt(inp.dataset.max) || null;
+          let qty = parseInt(inp.value) || 1;
+          if (qty < 1) qty = 1;
+          if (max && qty > max) qty = max;
+          inp.value = qty;
+          return qty;
+        };
+        inp.addEventListener('input', clampValue);
         inp.addEventListener('change', (e) => {
-          const id = e.target.dataset.id;
-          const qty = Math.max(1, parseInt(e.target.value) || 1);
-          setQty(id, qty);
+          const qty = clampValue();
+          setQty(e.target.dataset.id, qty);
           const updated = getCart();
           cart.length = 0;
           cart.push(...updated);
@@ -108,6 +145,7 @@ try {
       });
     }
     renderItems();
+    loadStock().then(renderItems);
 
     function updateSummary() {
       const subtotal = cart.reduce((s, c) => s + c.qty * Number(c.price), 0);

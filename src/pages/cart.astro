@@ -6,25 +6,59 @@ import Layout from '../layouts/Layout.astro';
   <div id="cart-root">Loading…</div>
   <script>
     import { getCart, setQty, removeFromCart } from '../lib/cart-client.js';
+    import { getBrowserSupabase } from '../lib/supabase-browser.js';
 
     function rupees(n) {
       return '₹' + Number(n).toLocaleString('en-IN');
     }
 
-    function render() {
-      const cart = getCart();
+    async function render() {
+      let cart = getCart();
       const root = document.getElementById('cart-root');
       if (cart.length === 0) {
         root.innerHTML = '<p>Your cart is empty. <a href="/">Browse products</a></p>';
         return;
       }
+
+      // Check current real stock for everything in the cart, and clamp any
+      // quantity that now exceeds it (someone else may have bought stock
+      // since it was added, or the box's max attribute alone doesn't stop typing).
+      let stockMap = {};
+      try {
+        const supabase = await getBrowserSupabase();
+        const ids = cart.map((c) => c.product_id);
+        const { data } = await supabase.from('products').select('id,stock').in('id', ids);
+        (data || []).forEach((p) => {
+          stockMap[p.id] = p.stock;
+        });
+      } catch {
+        // if this fails, fall back to no client-side limit — checkout still enforces stock server-side
+      }
+
+      let clamped = false;
+      cart = cart.map((c) => {
+        const max = stockMap[c.product_id];
+        if (typeof max === 'number' && c.qty > Math.max(1, max)) {
+          clamped = true;
+          return { ...c, qty: Math.max(1, max) };
+        }
+        return c;
+      });
+      if (clamped) {
+        cart.forEach((c) => setQty(c.product_id, c.qty));
+      }
+
       let subtotal = 0;
       const rows = cart
         .map((c) => {
           subtotal += c.qty * Number(c.price);
+          const max = stockMap[c.product_id];
+          const maxAttr = typeof max === 'number' ? max : '';
+          const lowStockNote =
+            typeof max === 'number' && max <= 5 ? `<div style="color:#b91c1c;font-size:12px">Only ${max} left in stock</div>` : '';
           return `<div style="display:flex;gap:12px;align-items:center;background:#fff;padding:12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px">
-            <div style="flex:1">${c.name}<br><span style="color:#6b7280;font-size:13px">${c.sku}</span></div>
-            <input type="number" min="1" value="${c.qty}" data-id="${c.product_id}" class="qty-input" style="width:60px;padding:6px;border:1px solid #e5e7eb;border-radius:6px" />
+            <div style="flex:1">${c.name}<br><span style="color:#6b7280;font-size:13px">${c.sku}</span>${lowStockNote}</div>
+            <input type="number" min="1" max="${maxAttr}" value="${c.qty}" data-id="${c.product_id}" data-max="${maxAttr}" class="qty-input" style="width:60px;padding:6px;border:1px solid #e5e7eb;border-radius:6px" />
             <div style="width:100px;text-align:right">${rupees(c.qty * c.price)}</div>
             <button data-remove="${c.product_id}" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:6px;padding:6px 10px;cursor:pointer">Remove</button>
           </div>`;
@@ -34,12 +68,23 @@ import Layout from '../layouts/Layout.astro';
         rows +
         `<div style="text-align:right;font-size:18px;font-weight:700;margin-top:12px">Subtotal: ${rupees(subtotal)}</div>
          <div style="text-align:right;margin-top:12px"><a class="btn" href="/checkout" style="display:inline-block">Proceed to Checkout</a></div>`;
-      root.querySelectorAll('.qty-input').forEach((inp) =>
+
+      root.querySelectorAll('.qty-input').forEach((inp) => {
+        const clampValue = () => {
+          const max = parseInt(inp.dataset.max) || null;
+          let qty = parseInt(inp.value) || 1;
+          if (qty < 1) qty = 1;
+          if (max && qty > max) qty = max;
+          inp.value = qty;
+          return qty;
+        };
+        inp.addEventListener('input', clampValue);
         inp.addEventListener('change', (e) => {
-          setQty(e.target.dataset.id, parseInt(e.target.value) || 1);
+          const qty = clampValue();
+          setQty(e.target.dataset.id, qty);
           render();
-        })
-      );
+        });
+      });
       root.querySelectorAll('[data-remove]').forEach((btn) =>
         btn.addEventListener('click', (e) => {
           removeFromCart(e.target.dataset.remove);

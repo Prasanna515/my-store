@@ -52,8 +52,19 @@ const off = p && p.mrp > p.selling_price ? Math.round((1 - p.selling_price / p.m
     const wrap = document.getElementById('add-to-cart');
     if (wrap) {
       const product = JSON.parse(wrap.dataset.product);
+      const qtyInput = document.getElementById('qty');
+      const clampQty = () => {
+        const max = parseInt(qtyInput.max) || 9999;
+        let val = parseInt(qtyInput.value) || 1;
+        if (val < 1) val = 1;
+        if (val > max) val = max;
+        qtyInput.value = val;
+        return val;
+      };
+      qtyInput?.addEventListener('input', clampQty);
+
       document.getElementById('add-btn')?.addEventListener('click', () => {
-        const qty = parseInt(document.getElementById('qty').value) || 1;
+        const qty = clampQty();
         addToCart(product, qty);
         const msg = document.getElementById('add-msg');
         msg.textContent = 'Added to cart!';
