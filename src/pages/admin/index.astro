@@ -62,6 +62,20 @@ const statuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'r
     <div id="import-result" style="margin-top:12px;font-size:14px;white-space:pre-wrap"></div>
   </div>
 
+  <h2 style="margin-top:32px">Remove a Product</h2>
+  <div style="background:#fff;padding:16px;border-radius:10px;border:1px solid var(--line);max-width:420px">
+    <p style="color:var(--muted);font-size:14px;margin-top:0">
+      If you change a product's SKU in your spreadsheet and re-import, the old SKU stays as a separate
+      (now stale) listing rather than being renamed — the importer has no way to know they're the same
+      product. Delete the old SKU here once you've confirmed the new one imported correctly.
+    </p>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="delete-sku-input" placeholder="SKU to delete, e.g. S-0012" style="flex:1;padding:10px;border:1px solid var(--line);border-radius:8px" />
+      <button id="delete-sku-btn" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:8px;padding:10px 16px;cursor:pointer">Delete</button>
+    </div>
+    <div id="delete-sku-result" style="margin-top:10px;font-size:14px"></div>
+  </div>
+
   <h2 style="margin-top:32px">Recent Orders</h2>
   <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;background:#fff">
@@ -102,6 +116,32 @@ const statuses = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'r
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
   <script>
+    document.getElementById('delete-sku-btn').addEventListener('click', async () => {
+      const input = document.getElementById('delete-sku-input');
+      const out = document.getElementById('delete-sku-result');
+      const sku = input.value.trim();
+      if (!sku) {
+        out.style.color = '#b91c1c';
+        out.textContent = 'Enter a SKU first.';
+        return;
+      }
+      if (!confirm(`Delete product with SKU "${sku}"? This cannot be undone.`)) return;
+      const res = await fetch('/api/admin/delete-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        out.style.color = '#b91c1c';
+        out.textContent = data.error || 'Delete failed.';
+        return;
+      }
+      out.style.color = '#15803d';
+      out.textContent = `Deleted: ${data.deleted.map((d) => d.name).join(', ')}`;
+      input.value = '';
+    });
+
     document.getElementById('upload-images-btn').addEventListener('click', async () => {
       const input = document.getElementById('image-files');
       const out = document.getElementById('upload-result');

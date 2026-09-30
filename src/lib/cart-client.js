@@ -15,19 +15,19 @@ function save(cart) {
 
 export function addToCart(item, qty = 1) {
   const cart = getCart();
-  const existing = cart.find((c) => c.product_id === item.product_id);
+  const existing = cart.find((c) => String(c.product_id) === String(item.product_id));
   if (existing) existing.qty += qty;
   else cart.push({ ...item, qty });
   save(cart);
 }
 
 export function setQty(product_id, qty) {
-  const cart = getCart().map((c) => (c.product_id === product_id ? { ...c, qty: Math.max(1, qty) } : c));
+  const cart = getCart().map((c) => (String(c.product_id) === String(product_id) ? { ...c, qty: Math.max(1, qty) } : c));
   save(cart);
 }
 
 export function removeFromCart(product_id) {
-  save(getCart().filter((c) => c.product_id !== product_id));
+  save(getCart().filter((c) => String(c.product_id) !== String(product_id)));
 }
 
 export function clearCart() {
