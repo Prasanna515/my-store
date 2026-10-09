@@ -7,6 +7,7 @@ import Layout from '../../layouts/Layout.astro';
   <div id="wishlist-root">Loading…</div>
   <script>
     import { getBrowserSupabase } from '../../lib/supabase-browser.js';
+    import { addToCart } from '../../lib/cart-client.js';
 
     function rupees(n) {
       return '₹' + Number(n).toLocaleString('en-IN');
@@ -25,7 +26,7 @@ import Layout from '../../layouts/Layout.astro';
 
       const { data: rows, error } = await supabase
         .from('wishlist')
-        .select('id, products ( slug, name, sku, selling_price, image_url, stock )')
+        .select('id, products ( id, slug, name, sku, selling_price, image_url, stock )')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -41,15 +42,24 @@ import Layout from '../../layouts/Layout.astro';
         .map((r) => {
           const p = r.products;
           if (!p) return '';
+          const product = JSON.stringify({ product_id: p.id || null, sku: p.sku, name: p.name, price: p.selling_price, image_url: p.image_url }).replace(/"/g, '&quot;');
           return `
           <div class="card">
-            <a href="/product/${p.slug}">
+            <a class="card-link" href="/product/${p.slug}">
               <div class="img">${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" />` : ''}</div>
               <div class="name">${p.name}</div>
               <div class="price">${rupees(p.selling_price)}</div>
               ${p.stock <= 0 ? '<div class="out">Out of stock</div>' : ''}
             </a>
-            <button data-remove="${r.id}" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:6px;padding:6px;cursor:pointer;margin-top:4px">Remove</button>
+            ${
+              p.stock > 0
+                ? `<div class="card-cart-row" data-product="${product}">
+                     <input type="number" class="card-qty" value="1" min="1" max="${p.stock}" />
+                     <button type="button" class="card-add-btn">Add</button>
+                   </div>`
+                : ''
+            }
+            <button data-remove="${r.id}" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:6px;padding:6px;cursor:pointer;margin-top:4px;width:100%">Remove</button>
           </div>`;
         })
         .join('')}</div>`;
@@ -58,6 +68,29 @@ import Layout from '../../layouts/Layout.astro';
         btn.addEventListener('click', async () => {
           await supabase.from('wishlist').delete().eq('id', btn.dataset.remove);
           init();
+        });
+      });
+
+      root.querySelectorAll('.card-cart-row').forEach((row) => {
+        const product = JSON.parse(row.dataset.product.replace(/&quot;/g, '"'));
+        const qtyInput = row.querySelector('.card-qty');
+        const addBtn = row.querySelector('.card-add-btn');
+        qtyInput.addEventListener('input', () => {
+          const max = parseInt(qtyInput.max) || 9999;
+          let val = parseInt(qtyInput.value) || 1;
+          if (val < 1) val = 1;
+          if (val > max) val = max;
+          qtyInput.value = val;
+        });
+        addBtn.addEventListener('click', () => {
+          const qty = parseInt(qtyInput.value) || 1;
+          addToCart(product, qty);
+          addBtn.textContent = 'Added ✓';
+          addBtn.classList.add('added');
+          setTimeout(() => {
+            addBtn.textContent = 'Add';
+            addBtn.classList.remove('added');
+          }, 1500);
         });
       });
     }

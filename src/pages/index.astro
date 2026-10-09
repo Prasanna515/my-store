@@ -80,6 +80,9 @@ try {
       <div class="hero-dots" id="hero-dots"></div>
     </div>
   )}
+  {!current && !q && (
+    <div class="cat-tile-grid" id="cat-tile-grid"></div>
+  )}
   <div class="chips">
     <a class={`chip ${!current ? 'on' : ''}`} href="/">All</a>
     {parents.map((c) => <a class={`chip ${current?.id === c.id ? 'on' : ''}`} href={`/?cat=${c.id}`}>{c.name}</a>)}
@@ -88,12 +91,24 @@ try {
   {products.length === 0 ? <p>No products found.</p> : (
     <div class="grid">
       {products.map((p) => (
-        <a class="card" href={`/product/${p.slug}`}>
-          <div class="img">{p.image_url && <img src={p.image_url} alt={p.name} loading="lazy" />}</div>
-          <div class="name">{p.name}</div>
-          <div><span class="price">{rupees(p.selling_price)}</span>{p.mrp > p.selling_price && <span class="mrp">{rupees(p.mrp)}</span>}</div>
-          {p.stock <= 0 && <div class="out">Out of stock</div>}
-        </a>
+        <div class="card" data-product-id={p.id}>
+          <button type="button" class="wishlist-heart" data-product-id={p.id} aria-label="Add to wishlist">♡</button>
+          <a class="card-link" href={`/product/${p.slug}`}>
+            <div class="img">{p.image_url && <img src={p.image_url} alt={p.name} loading="lazy" />}</div>
+            <div class="name">{p.name}</div>
+            <div><span class="price">{rupees(p.selling_price)}</span>{p.mrp > p.selling_price && <span class="mrp">{rupees(p.mrp)}</span>}</div>
+            {p.stock <= 0 && <div class="out">Out of stock</div>}
+          </a>
+          {p.stock > 0 && (
+            <div
+              class="card-cart-row"
+              data-product={JSON.stringify({ product_id: p.id, sku: p.sku, name: p.name, price: p.selling_price, image_url: p.image_url })}
+            >
+              <input type="number" class="card-qty" value="1" min="1" max={p.stock} />
+              <button type="button" class="card-add-btn">Add</button>
+            </div>
+          )}
+        </div>
       ))}
     </div>
   )}
@@ -151,4 +166,134 @@ try {
     carousel.addEventListener('mouseenter', () => clearInterval(timer));
     carousel.addEventListener('mouseleave', () => (timer = setInterval(() => goTo(index + 1), 4500)));
   }
+</script>
+
+<script>
+  import { addToCart } from '../lib/cart-client.js';
+  import { getBrowserSupabase } from '../lib/supabase-browser.js';
+
+  // ---------- Shop by Category tiles ----------
+  const TILE_STYLES = {
+    'Sensors & Modules': {
+      bg: 'linear-gradient(135deg,#0b3d91,#1e6fd9)',
+      icon: '<circle cx="50" cy="50" r="14"/><circle cx="50" cy="50" r="26"/><circle cx="50" cy="50" r="38"/>',
+    },
+    'Motors & Drivers': {
+      bg: 'linear-gradient(135deg,#134e4a,#0f9488)',
+      icon: '<circle cx="50" cy="50" r="16"/><circle cx="50" cy="50" r="5"/><line x1="50" y1="18" x2="50" y2="28"/><line x1="50" y1="72" x2="50" y2="82"/><line x1="18" y1="50" x2="28" y2="50"/><line x1="72" y1="50" x2="82" y2="50"/><line x1="27" y1="27" x2="34" y2="34"/><line x1="66" y1="66" x2="73" y2="73"/><line x1="73" y1="27" x2="66" y2="34"/><line x1="34" y1="66" x2="27" y2="73"/>',
+    },
+    Components: {
+      bg: 'linear-gradient(135deg,#7c2d12,#c2410c)',
+      icon: '<line x1="10" y1="50" x2="28" y2="50"/><line x1="72" y1="50" x2="90" y2="50"/><path d="M28 50 L34 38 L42 62 L50 38 L58 62 L66 38 L72 50"/>',
+    },
+    ICs: {
+      bg: 'linear-gradient(135deg,#3730a3,#6d28d9)',
+      icon: '<rect x="30" y="30" width="40" height="40" rx="4"/><line x1="30" y1="40" x2="14" y2="40"/><line x1="30" y1="60" x2="14" y2="60"/><line x1="70" y1="40" x2="86" y2="40"/><line x1="70" y1="60" x2="86" y2="60"/><line x1="40" y1="30" x2="40" y2="14"/><line x1="60" y1="30" x2="60" y2="14"/><line x1="40" y1="70" x2="40" y2="86"/><line x1="60" y1="70" x2="60" y2="86"/>',
+    },
+    'Development Boards': {
+      bg: 'linear-gradient(135deg,#0b1f3a,#123a7a)',
+      icon: '<rect x="20" y="30" width="60" height="40" rx="4"/><circle cx="32" cy="42" r="3" fill="#ffffff" fill-opacity="0.9" stroke="none"/><circle cx="44" cy="42" r="3" fill="#ffffff" fill-opacity="0.9" stroke="none"/><circle cx="56" cy="42" r="3" fill="#ffffff" fill-opacity="0.9" stroke="none"/><circle cx="68" cy="42" r="3" fill="#ffffff" fill-opacity="0.9" stroke="none"/><line x1="30" y1="58" x2="70" y2="58"/>',
+    },
+    Power: {
+      bg: 'linear-gradient(135deg,#854d0e,#ca8a04)',
+      icon: '<rect x="25" y="35" width="45" height="30" rx="3"/><rect x="70" y="45" width="6" height="10"/><line x1="40" y1="42" x2="40" y2="58"/><line x1="55" y1="42" x2="55" y2="58"/>',
+    },
+  };
+  const DEFAULT_TILE = {
+    bg: 'linear-gradient(135deg,#374151,#6b7280)',
+    icon: '<rect x="30" y="30" width="40" height="40" rx="6"/>',
+  };
+
+  async function loadCategoryTiles() {
+    const grid = document.getElementById('cat-tile-grid');
+    if (!grid) return;
+    try {
+      const res = await fetch('/api/categories');
+      const data = await res.json();
+      const parents = data.parents || [];
+      grid.innerHTML = parents
+        .map((c) => {
+          const style = TILE_STYLES[c.name] || DEFAULT_TILE;
+          return `<a class="cat-tile" href="/?cat=${c.id}" style="background:${style.bg}">
+            <svg viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="3" stroke-opacity="0.9">${style.icon}</svg>
+            <span>${c.name}</span>
+          </a>`;
+        })
+        .join('');
+    } catch {
+      grid.remove();
+    }
+  }
+  loadCategoryTiles();
+
+  // ---------- Wishlist hearts on product cards ----------
+  async function initWishlistHearts() {
+    const hearts = document.querySelectorAll('.wishlist-heart');
+    if (hearts.length === 0) return;
+
+    let supabase, session;
+    try {
+      supabase = await getBrowserSupabase();
+      const { data } = await supabase.auth.getSession();
+      session = data.session;
+    } catch {
+      return;
+    }
+    if (!session) {
+      hearts.forEach((h) =>
+        h.addEventListener('click', () => {
+          window.location.href = `/account/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        })
+      );
+      return;
+    }
+
+    const { data: rows } = await supabase.from('wishlist').select('product_id');
+    const wishedIds = new Set((rows || []).map((r) => String(r.product_id)));
+
+    hearts.forEach((h) => {
+      const pid = h.dataset.productId;
+      if (wishedIds.has(pid)) {
+        h.textContent = '♥';
+        h.classList.add('active');
+      }
+      h.addEventListener('click', async () => {
+        const active = h.classList.contains('active');
+        if (active) {
+          await supabase.from('wishlist').delete().eq('product_id', pid);
+          h.textContent = '♡';
+          h.classList.remove('active');
+        } else {
+          await supabase.from('wishlist').insert({ product_id: Number(pid), user_id: session.user.id });
+          h.textContent = '♥';
+          h.classList.add('active');
+        }
+      });
+    });
+  }
+  initWishlistHearts();
+
+  // ---------- Inline Add to Cart on product cards ----------
+  document.querySelectorAll('.card-cart-row').forEach((row) => {
+    const product = JSON.parse(row.dataset.product);
+    const qtyInput = row.querySelector('.card-qty');
+    const addBtn = row.querySelector('.card-add-btn');
+    qtyInput.addEventListener('input', () => {
+      const max = parseInt(qtyInput.max) || 9999;
+      let val = parseInt(qtyInput.value) || 1;
+      if (val < 1) val = 1;
+      if (val > max) val = max;
+      qtyInput.value = val;
+    });
+    addBtn.addEventListener('click', () => {
+      const qty = parseInt(qtyInput.value) || 1;
+      addToCart(product, qty);
+      addBtn.textContent = 'Added ✓';
+      addBtn.classList.add('added');
+      setTimeout(() => {
+        addBtn.textContent = 'Add';
+        addBtn.classList.remove('added');
+      }, 1500);
+    });
+  });
 </script>
