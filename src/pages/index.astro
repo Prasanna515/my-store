@@ -106,7 +106,7 @@ try {
               class="card-cart-row"
               data-product={JSON.stringify({ product_id: p.id, sku: p.sku, name: p.name, price: p.selling_price, image_url: p.image_url })}
             >
-              <input type="number" class="card-qty" value="1" min="1" max={p.stock} />
+              <input type="number" inputmode="numeric" pattern="[0-9]*" class="card-qty" value="1" min="1" max={p.stock} />
               <button type="button" class="card-add-btn">Add</button>
             </div>
           )}
@@ -277,15 +277,20 @@ try {
     const product = JSON.parse(row.dataset.product);
     const qtyInput = row.querySelector('.card-qty');
     const addBtn = row.querySelector('.card-add-btn');
-    qtyInput.addEventListener('input', () => {
+    const clampCardQty = () => {
       const max = parseInt(qtyInput.max) || 9999;
-      let val = parseInt(qtyInput.value) || 1;
-      if (val < 1) val = 1;
+      let val = parseInt(qtyInput.value);
+      if (!val || val < 1) val = 1;
       if (val > max) val = max;
       qtyInput.value = val;
+      return val;
+    };
+    qtyInput.addEventListener('input', () => {
+      qtyInput.value = qtyInput.value.replace(/[^0-9]/g, '');
     });
+    qtyInput.addEventListener('blur', clampCardQty);
     addBtn.addEventListener('click', () => {
-      const qty = parseInt(qtyInput.value) || 1;
+      const qty = clampCardQty();
       addToCart(product, qty);
       addBtn.textContent = 'Added ✓';
       addBtn.classList.add('added');

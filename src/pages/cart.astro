@@ -58,7 +58,7 @@ import Layout from '../layouts/Layout.astro';
             typeof max === 'number' && max <= 5 ? `<div style="color:#b91c1c;font-size:12px">Only ${max} left in stock</div>` : '';
           return `<div style="display:flex;gap:12px;align-items:center;background:#fff;padding:12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px">
             <div style="flex:1">${c.name}<br><span style="color:#6b7280;font-size:13px">${c.sku}</span>${lowStockNote}</div>
-            <input type="number" min="1" max="${maxAttr}" value="${c.qty}" data-id="${c.product_id}" data-max="${maxAttr}" class="qty-input" style="width:60px;padding:6px;border:1px solid #e5e7eb;border-radius:6px" />
+            <input type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="${maxAttr}" value="${c.qty}" data-id="${c.product_id}" data-max="${maxAttr}" class="qty-input" style="width:60px;padding:6px;border:1px solid #e5e7eb;border-radius:6px" />
             <div style="width:100px;text-align:right">${rupees(c.qty * c.price)}</div>
             <button data-remove="${c.product_id}" style="background:#fee2e2;color:#b91c1c;border:0;border-radius:6px;padding:6px 10px;cursor:pointer">Remove</button>
           </div>`;
@@ -72,13 +72,18 @@ import Layout from '../layouts/Layout.astro';
       root.querySelectorAll('.qty-input').forEach((inp) => {
         const clampValue = () => {
           const max = parseInt(inp.dataset.max) || null;
-          let qty = parseInt(inp.value) || 1;
-          if (qty < 1) qty = 1;
+          let qty = parseInt(inp.value);
+          if (!qty || qty < 1) qty = 1;
           if (max && qty > max) qty = max;
           inp.value = qty;
           return qty;
         };
-        inp.addEventListener('input', clampValue);
+        // While typing, only strip non-digits — don't force a value, or mobile
+        // keyboards can't clear the field to type a new number.
+        inp.addEventListener('input', () => {
+          inp.value = inp.value.replace(/[^0-9]/g, '');
+        });
+        inp.addEventListener('blur', clampValue);
         inp.addEventListener('change', (e) => {
           const qty = clampValue();
           setQty(e.target.dataset.id, qty);
