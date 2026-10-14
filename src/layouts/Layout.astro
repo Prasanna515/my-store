@@ -66,10 +66,16 @@ const q = Astro.url.searchParams.get('q') ?? '';
       width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:16px;
       cursor:pointer; color:var(--ink); z-index:2; line-height:1;
     }
+    .wishlist-heart svg { display:block; }
     .wishlist-heart.active { color:#b91c1c; border-color:#b91c1c; background:#fef2f2; }
-    .card-cart-row { display:flex; gap:6px; margin-top:4px; }
-    .card-qty { width:46px; padding:5px; border:1px solid var(--line); border-radius:6px; font-size:13px; }
-    .card-add-btn { flex:1; background:var(--brand); color:#fff; border:0; border-radius:6px; padding:6px; font-size:13px; cursor:pointer; }
+    .wishlist-heart.active svg path { fill:currentColor; }
+    .card-cart-row { display:flex; flex-wrap:nowrap; align-items:stretch; gap:6px; margin-top:4px; width:100%; }
+    .card-qty {
+      flex:0 0 40px; width:40px; min-width:0; padding:5px 2px; border:1px solid var(--line);
+      border-radius:6px; font-size:13px; text-align:center;
+    }
+    .card-qty::-webkit-outer-spin-button, .card-qty::-webkit-inner-spin-button { margin:0; }
+    .card-add-btn { flex:1 1 auto; min-width:0; background:var(--brand); color:#fff; border:0; border-radius:6px; padding:6px 2px; font-size:13px; cursor:pointer; white-space:nowrap; }
     .card-add-btn.added { background:#15803d; }
 
     .cat-tile-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
@@ -132,7 +138,10 @@ const q = Astro.url.searchParams.get('q') ?? '';
       </div>
       <a class="logo" href="/"><img src="/logo.png" alt="ROBO9 Electronics & Automation" /></a>
       <div class="header-icons">
-        <a href="/account/wishlist" id="header-wishlist" class="icon-btn" title="My Wishlist">♡<span class="mnav-badge" id="wishlist-badge" style="display:none">0</span></a>
+        <a href="/account/wishlist" id="header-wishlist" class="icon-btn" title="My Wishlist">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 21s-7.5-4.6-10-9.3C.5 8 2 4 6 4c2.3 0 3.8 1.3 4.5 2.3C11.2 5.3 12.7 4 15 4c4 0 5.5 4 4 7.7C19.5 16.4 12 21 12 21z"/></svg>
+          <span class="mnav-badge" id="wishlist-badge" style="display:none">0</span>
+        </a>
         <a href="/cart" id="header-cart" class="icon-btn" title="Cart">🛒<span class="mnav-badge" data-cart-count>0</span></a>
       </div>
     </div>
@@ -145,7 +154,7 @@ const q = Astro.url.searchParams.get('q') ?? '';
   <main><slot /></main>
   <nav class="mobile-nav">
     <a href="/" class="mnav-item"><span class="icon">🏠</span>Home</a>
-    <a href="/account/wishlist" class="mnav-item"><span class="icon">♡<span class="mnav-badge" id="wishlist-badge-mobile" style="display:none">0</span></span>Wishlist</a>
+    <a href="/account/wishlist" class="mnav-item"><span class="icon"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" style="vertical-align:-4px"><path d="M12 21s-7.5-4.6-10-9.3C.5 8 2 4 6 4c2.3 0 3.8 1.3 4.5 2.3C11.2 5.3 12.7 4 15 4c4 0 5.5 4 4 7.7C19.5 16.4 12 21 12 21z"/></svg><span class="mnav-badge" id="wishlist-badge-mobile" style="display:none">0</span></span>Wishlist</a>
     <a href="/cart" class="mnav-item"><span class="icon">🛒<span class="mnav-badge" data-cart-count>0</span></span>Cart</a>
     <a href="/account/orders" class="mnav-item"><span class="icon">📦</span>Orders</a>
     <a href="/account" class="mnav-item"><span class="icon">👤</span>Account</a>

@@ -92,7 +92,9 @@ try {
     <div class="grid">
       {products.map((p) => (
         <div class="card" data-product-id={p.id}>
-          <button type="button" class="wishlist-heart" data-product-id={p.id} aria-label="Add to wishlist">♡</button>
+          <button type="button" class="wishlist-heart" data-product-id={p.id} aria-label="Add to wishlist">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 21s-7.5-4.6-10-9.3C.5 8 2 4 6 4c2.3 0 3.8 1.3 4.5 2.3C11.2 5.3 12.7 4 15 4c4 0 5.5 4 4 7.7C19.5 16.4 12 21 12 21z"/></svg>
+          </button>
           <a class="card-link" href={`/product/${p.slug}`}>
             <div class="img">{p.image_url && <img src={p.image_url} alt={p.name} loading="lazy" />}</div>
             <div class="name">{p.name}</div>
@@ -254,18 +256,15 @@ try {
     hearts.forEach((h) => {
       const pid = h.dataset.productId;
       if (wishedIds.has(pid)) {
-        h.textContent = '♥';
         h.classList.add('active');
       }
       h.addEventListener('click', async () => {
         const active = h.classList.contains('active');
         if (active) {
           await supabase.from('wishlist').delete().eq('product_id', pid);
-          h.textContent = '♡';
           h.classList.remove('active');
         } else {
           await supabase.from('wishlist').insert({ product_id: Number(pid), user_id: session.user.id });
-          h.textContent = '♥';
           h.classList.add('active');
         }
       });
